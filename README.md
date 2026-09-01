@@ -42,6 +42,22 @@ after 30 minutes idle unless told otherwise.
 The server JDK must include the `java.desktop` module: `key.core` still touches Swing classes in a
 few places, so a jlink-trimmed image will not run it.
 
+## What to point `load` at
+
+For a directory of Java sources, pass the directory. For anything that needs a class path, a
+custom rule file or a chosen contract, pass the project's own `.key` file instead — those
+declarations live in it, not in the sources:
+
+```
+\classpath "./jre/";
+\javaSource "src";
+\include "symbols.key";
+```
+
+Loading such a project by its source directory fails with a symbol KeY cannot resolve, which is
+accurate but easy to misread as a broken project. KeY's own `case-studies/timsort` is one of
+these.
+
 ## Library
 
 ```python
@@ -73,6 +89,17 @@ with KeyClient.discover(workspace="/path/to/project") as key:
   the work finished without throwing — a macro that ends leaving three goals open is a succeeded
   task with three open goals.
 - **No JVM management, no jar downloads, no `--force`.**
+
+### What the diagnostics can and cannot tell you
+
+`stuck_points` reports rules that want to apply to a goal and cannot. An empty list is a finding:
+nothing is waiting on a specification you could write.
+
+It does not mean the goal is false. It covers KeY's built-in rules — loop invariants, contracts,
+one-step simplification — and not its taclets, so a goal left open because the automatic strategy
+ran out of moves also comes back with nothing stuck. Read it together with the search's own
+outcome: `COMPLETED` with open goals and no stuck points means the prover finished and got no
+further, which usually calls for a proof script rather than more specification.
 
 ### Errors
 
