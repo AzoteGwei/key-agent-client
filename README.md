@@ -162,6 +162,36 @@ trailing note — so the stream stays parseable. Everything meant for a person g
 Without `--json` the output is tab-separated lines with no borders, colour or spinners, because
 the most likely reader is still a program.
 
+## MCP server
+
+```sh
+claude mcp add key-agent -- uvx --from "key-agent-client[mcp]" key-agent-mcp --workspace .
+```
+
+Six tools: `key_load`, `key_prove`, `key_inspect`, `key_script`, `key_save`, `key_server`.
+
+They are shaped like the work rather than like the protocol — `key_prove` starts a proof, runs the
+search, waits, and reports the proof — so **no task ever reaches the model**. That is deliberate.
+The protocol answers a long operation with a handle whose status becomes `SUCCEEDED`, meaning "the
+work finished", which sits one word away from "the contract holds". Waiting inside the tool means
+there is no `SUCCEEDED` to misread.
+
+```
+closed: false — the proof did NOT close. 1 goal(s) remain open.
+The prover ran out of things to try, so more time will not help. Use key_inspect to see
+what is open, then a proof script, a solver, or a missing specification.
+
+searchEnded: EXHAUSTED
+openGoalIds: [30]
+```
+
+This process contains no prover. It connects to a `keyext.server` that is already running, so the
+warm JVM outlives the conversation instead of being started and thrown away with each one — and
+since there is no KeY here to ask, nothing in it can decide that a proof succeeded.
+
+It does not start a server. If none is running the tools say so and give the command, including
+the heap setting, because a server started without one dies part way through a real proof.
+
 ## Licence
 
 MIT. The KeY server it talks to is GPL-2.0-only; this client is a separate program that

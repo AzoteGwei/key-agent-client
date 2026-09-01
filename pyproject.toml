@@ -25,6 +25,14 @@ Issues = "https://github.com/AzoteGwei/key-agent-client/issues"
 
 [project.scripts]
 key-agent = "keyclient.cli:main"
+key-agent-mcp = "keyclient.mcp:main"
+
+[project.optional-dependencies]
+# Only the MCP server needs this. The library and the CLI stay dependency-free, so installing
+# key-agent-client into an environment an agent already has brings nothing with it.
+mcp = [
+    "mcp>=2,<3",
+]
 
 [dependency-groups]
 dev = ["pytest>=8", "ruff>=0.6"]
