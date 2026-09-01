@@ -54,7 +54,9 @@ No dependencies, Python 3.10 or newer. The MCP server is an extra:
 ## Starting a server
 
 This client does not start one, on purpose: a library that spawns JVMs is a library that owns
-processes it cannot supervise. Run it yourself, from a KeY checkout:
+processes it cannot supervise. Run it yourself, from a checkout of
+[this KeY fork](https://github.com/AzoteGwei/key) — `keyext.server` is not an upstream KeY
+component:
 
 ```sh
 ./gradlew :keyext.server:shadowJar

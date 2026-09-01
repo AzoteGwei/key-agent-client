@@ -1,6 +1,6 @@
 # key-agent-client
 
-A Python client for the headless [KeY](https://key-project.org) theorem prover server — for
+A Python client for the headless [KeY](https://github.com/AzoteGwei/key) theorem prover server — for
 proving that Java code satisfies its JML specification, and for finding out what to do when it
 does not.
 
@@ -21,7 +21,8 @@ No dependencies. Python 3.10 or newer. Add the `[mcp]` extra for the MCP server.
 ## Start a server
 
 This client does not start one, on purpose: a library that spawns JVMs is a library that owns
-processes it cannot supervise. From a KeY checkout:
+processes it cannot supervise. From a checkout of [this KeY fork](https://github.com/AzoteGwei/key),
+which is where `keyext.server` lives — it is not part of upstream KeY:
 
 ```sh
 ./gradlew :keyext.server:shadowJar
