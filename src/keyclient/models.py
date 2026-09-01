@@ -25,6 +25,7 @@ __all__ = [
     "ApplicableRule",
     "GoalRules",
     "SavedProof",
+    "PrunedProof",
 ]
 
 
@@ -209,6 +210,21 @@ class GoalDiagnostics:
         nothing either way.
         """
         return self.last_search_outcome == "EXHAUSTED"
+
+
+@dataclass(frozen=True)
+class PrunedProof:
+    """What pruning removed.
+
+    A prune that would remove nothing is refused rather than reported, so this existing at all
+    means something came off.
+    """
+
+    goal_id: int
+    proof_id: str
+    removed_nodes: int
+    statistics: Statistics
+    raw: dict[str, Any] = field(default_factory=dict, repr=False)
 
 
 @dataclass(frozen=True)

@@ -26,6 +26,7 @@ from .models import (
     Instance,
     Macro,
     ProofObligation,
+    PrunedProof,
     SavedProof,
     Sequent,
     Statistics,
@@ -205,6 +206,22 @@ class KeyClient:
         failed.
         """
         return _task(self.rpc.call("proof.loadFile", {"path": str(path)}))
+
+    def prune(self, proof_id: str, node_id: int) -> PrunedProof:
+        """Cuts a proof back to a node, discarding everything below it.
+
+        How to take back a wrong turn without starting again from the contract. Refused when it
+        would remove nothing, when the proof is closed, and when a merge rule was applied below
+        the node.
+        """
+        payload = self.rpc.call("proof.prune", {"proof": {"proofId": proof_id}, "nodeId": node_id})
+        return PrunedProof(
+            goal_id=int(payload["goal"]["goalId"]),
+            proof_id=payload["goal"]["proofId"],
+            removed_nodes=int(payload["removedNodes"]),
+            statistics=_statistics(payload["statistics"]),
+            raw=payload,
+        )
 
     def close_proof(self, proof_id: str) -> bool:
         """Releases a proof."""

@@ -159,6 +159,25 @@ def test_a_missing_invariant_keeps_its_source_position(fake: FakeServer) -> None
     assert point.source["line"] == 26
 
 
+def test_pruning_reports_what_it_removed(fake: FakeServer) -> None:
+    fake.answer(
+        "proof.prune",
+        {
+            "goal": {"proofId": "prf-1", "goalId": 0},
+            "removedNodes": 26,
+            "statistics": {"closed": False, "openGoals": 1, "nodes": 1},
+        },
+    )
+
+    pruned = client(fake).prune("prf-1", 0)
+
+    # The count matters: KeY answers "nothing to do" and "done" in ways that look alike, so a
+    # caller has to be able to see that something actually came off.
+    assert pruned.removed_nodes == 26
+    assert pruned.goal_id == 0
+    assert pruned.statistics.closed is False
+
+
 def test_the_client_is_a_context_manager(fake: FakeServer) -> None:
     fake.answer("server.health", {"ok": True})
 
