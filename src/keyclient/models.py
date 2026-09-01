@@ -16,6 +16,7 @@ __all__ = [
     "ProofObligation",
     "Goal",
     "Sequent",
+    "StructuredFormula",
     "Statistics",
     "StuckPoint",
     "GoalDiagnostics",
@@ -95,12 +96,41 @@ class Goal:
 
 
 @dataclass(frozen=True)
+class StructuredFormula:
+    """One formula of a sequent, taken apart into the pieces it is made of.
+
+    A proof obligation in mid-flight is one enormous formula: a symbolic state, then the program
+    still to run, then what must hold once it has. Read as one string it is several hundred
+    characters with the interesting part at the end. Separated, each piece answers a different
+    question.
+    """
+
+    side: str
+    index: int
+    text: str
+    claim: str
+    state: str | None = None
+    program: str | None = None
+    raw: dict[str, Any] = field(default_factory=dict, repr=False)
+
+    @property
+    def has_program(self) -> bool:
+        """Whether this formula still has Java left to execute."""
+        return self.program is not None
+
+
+@dataclass(frozen=True)
 class Sequent:
-    """The formulas of one goal."""
+    """The formulas of one goal.
+
+    ``antecedent`` and ``succedent`` are filled whatever format was asked for. ``formulas`` is
+    filled only for ``STRUCTURED``.
+    """
 
     antecedent: list[str]
     succedent: list[str]
     format: str
+    formulas: list[StructuredFormula] = field(default_factory=list)
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
 
     def __str__(self) -> str:

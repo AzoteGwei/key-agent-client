@@ -31,6 +31,7 @@ from .models import (
     SavedProof,
     Sequent,
     Statistics,
+    StructuredFormula,
     StuckPoint,
     Task,
 )
@@ -55,6 +56,7 @@ __all__ = [
     "SavedProof",
     "Sequent",
     "Statistics",
+    "StructuredFormula",
     "StuckPoint",
     "Task",
     "__version__",

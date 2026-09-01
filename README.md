@@ -90,6 +90,22 @@ with KeyClient.discover(workspace="/path/to/project") as key:
   task with three open goals.
 - **No JVM management, no jar downloads, no `--force`.**
 
+### Reading a sequent
+
+A proof obligation in mid-flight is one formula of several hundred characters whose interesting
+part is the last thirty. `STRUCTURED` splits each one the way KeY itself does:
+
+```python
+for formula in key.sequent(proof, goal_id, "STRUCTURED").formulas:
+    formula.state    # {heapAtPre:=heap || total:=0 || i:=1}
+    formula.program  # { try { ... while (i <= _n) { total += i; i++; } ... } }
+    formula.claim    # … \<…\> ( result_sumTo >= 0 & ... )
+```
+
+The split comes from the position table KeY builds while printing — the same one its editor uses
+to highlight updates and Java blocks — so it cannot drift from what KeY thinks the formula is.
+`antecedent` and `succedent` are filled whatever format you ask for.
+
 ### What the diagnostics can and cannot tell you
 
 `stuck_points` reports rules that want to apply to a goal and cannot. An empty list is a finding:

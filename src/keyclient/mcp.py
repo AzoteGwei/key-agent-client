@@ -26,7 +26,7 @@ from typing import Any
 from .client import KeyClient
 from .discovery import START_HINT, resolve
 from .exceptions import InstanceNotFoundError, KeyClientError, KeyServerRpcError
-from .models import GoalDiagnostics, Statistics, Task
+from .models import GoalDiagnostics, Sequent, Statistics, Task
 
 __all__ = ["build_server", "main"]
 
@@ -92,6 +92,32 @@ def _statistics_lines(statistics: Statistics) -> str:
         f"ruleApplications: {statistics.total_rule_apps}\n"
         f"smtSolverApplications: {statistics.smt_solver_apps}"
     )
+
+
+def _render_sequent(sequent: Sequent) -> str:
+    """Lays a sequent out as the pieces it is made of.
+
+    A goal in mid-execution is one formula of several hundred characters whose interesting part is
+    at the end. Printed whole it has to be parsed before it can be read; laid out as what is
+    assumed, what the state is, what is left to run and what must hold, each line answers a
+    question on its own.
+    """
+    if not sequent.formulas:
+        return str(sequent)
+
+    assumed = [each.text for each in sequent.formulas if each.side == "ANTECEDENT"]
+    lines = []
+    if assumed:
+        lines.append("assumed:\n  " + "\n  ".join(assumed))
+    for formula in sequent.formulas:
+        if formula.side != "SUCCEDENT":
+            continue
+        if formula.state:
+            lines.append(f"symbolic state:\n  {formula.state}")
+        if formula.program:
+            lines.append(f"still to execute:\n  {formula.program}")
+        lines.append(f"must hold:\n  {formula.claim}")
+    return "\n\n".join(lines)
 
 
 def _goal_finding(goal: GoalDiagnostics, sequent: str) -> str:
@@ -200,9 +226,11 @@ def build_server(settings: Settings) -> Any:
 
     @server.tool(
         description=(
-            "Report why the open goals of a proof are not closing: the sequent of each, and "
-            "whether it is waiting on a specification you could write, on a proof step the "
-            "automatic search cannot find, or merely on more search budget."
+            "Report why the open goals of a proof are not closing. Each goal is laid out as "
+            "what is assumed, the symbolic state, the program still to execute and what must "
+            "hold once it has, together with whether the goal is waiting on a specification you "
+            "could write, on a proof step the automatic search cannot find, or merely on more "
+            "search budget."
         )
     )
     def key_inspect(proof_id: str, max_goals: int = 5) -> str:
@@ -217,12 +245,13 @@ def build_server(settings: Settings) -> Any:
             diagnostics = {each.goal_id: each for each in key.stuck_points(proof_id)}
             findings = []
             for goal in goals[:max_goals]:
-                sequent = key.sequent(proof_id, goal.goal_id)
+                # Structured, because this is the tool whose whole job is to be readable.
+                sequent = _render_sequent(key.sequent(proof_id, goal.goal_id, "STRUCTURED"))
                 finding = diagnostics.get(goal.goal_id)
                 if finding is None:
                     findings.append(f"goal {goal.goal_id}:\n{sequent}")
                 else:
-                    findings.append(_goal_finding(finding, str(sequent)))
+                    findings.append(_goal_finding(finding, sequent))
 
         more = (
             f"\n\n({len(goals) - max_goals} further open goal(s) not shown.)"

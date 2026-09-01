@@ -27,6 +27,7 @@ from .models import (
     SavedProof,
     Sequent,
     Statistics,
+    StructuredFormula,
     StuckPoint,
     Task,
     _statistics,
@@ -229,8 +230,10 @@ class KeyClient:
     def sequent(self, proof_id: str, goal_id: int, fmt: str = "TEXT") -> Sequent:
         """The formulas of one goal.
 
-        Only ``TEXT`` is implemented. Asking for another format is refused rather than answered
-        with text under the wrong label.
+        ``TEXT`` is KeY's pretty-printed rendering, ``UNICODE`` the same with logical symbols,
+        and ``STRUCTURED`` the same again with each formula also split into its symbolic state,
+        the program still to run, and what must hold once it has — available on
+        :attr:`Sequent.formulas`.
         """
         payload = self.rpc.call(
             "goal.getSequent",
@@ -240,6 +243,18 @@ class KeyClient:
             antecedent=list(payload.get("antecedent", [])),
             succedent=list(payload.get("succedent", [])),
             format=payload.get("format", fmt),
+            formulas=[
+                StructuredFormula(
+                    side=each["side"],
+                    index=int(each["index"]),
+                    text=each["text"],
+                    claim=each["claim"],
+                    state=each.get("state"),
+                    program=each.get("program"),
+                    raw=each,
+                )
+                for each in payload.get("formulas", [])
+            ],
             raw=payload,
         )
 

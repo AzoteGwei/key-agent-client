@@ -137,7 +137,22 @@ def test_inspect_gives_a_different_conclusion_for_each_reason(fake, monkeypatch,
     )
     fake.answer(
         "goal.getSequent",
-        {"antecedent": ["a > 0"], "succedent": ["a >= 0"], "format": "TEXT"},
+        {
+            "antecedent": ["n >= 0"],
+            "succedent": ["{i:=1} \\<{ while (i <= n) ; }\\> (total >= 0)"],
+            "format": "STRUCTURED",
+            "formulas": [
+                {"side": "ANTECEDENT", "index": 0, "text": "n >= 0", "claim": "n >= 0"},
+                {
+                    "side": "SUCCEDENT",
+                    "index": 0,
+                    "text": "{i:=1} \\<{ while (i <= n) ; }\\> (total >= 0)",
+                    "state": "{i:=1}",
+                    "program": "{ while (i <= n) ; }",
+                    "claim": "… \\<…\\> (total >= 0)",
+                },
+            ],
+        },
     )
     fake.answer(
         "diagnostics.listStuckPoints",
@@ -173,6 +188,14 @@ def test_inspect_gives_a_different_conclusion_for_each_reason(fake, monkeypatch,
     assert "Summer.java:26" in answer
     assert "run out of things to try" in answer
     assert "stopped before it finished looking" in answer
+
+    # And the goal is laid out as its pieces rather than as one formula to be parsed. This is
+    # the tool whose whole job is to be read, and a several-hundred-character blob is not read.
+    assert "symbolic state:" in answer
+    assert "still to execute:" in answer
+    assert "while (i <= n)" in answer
+    assert "must hold:" in answer
+    assert "assumed:" in answer
 
 
 def test_a_save_that_failed_is_not_reported_as_a_file(fake, monkeypatch, tmp_path) -> None:

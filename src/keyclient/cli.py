@@ -178,10 +178,20 @@ def _sequent(args: argparse.Namespace) -> int:
     if args.json:
         _json(sequent.raw)
         return EXIT_CLOSED
-    for formula in sequent.antecedent:
-        print(f"A\t{_one_line(formula)}")
-    for formula in sequent.succedent:
-        print(f"S\t{_one_line(formula)}")
+    if not sequent.formulas:
+        for formula in sequent.antecedent:
+            print(f"A\t{_one_line(formula)}")
+        for formula in sequent.succedent:
+            print(f"S\t{_one_line(formula)}")
+        return EXIT_CLOSED
+    # Still one record per line, so it stays greppable; the tag says which piece.
+    for formula in sequent.formulas:
+        tag = "A" if formula.side == "ANTECEDENT" else "S"
+        if formula.state:
+            print(f"{tag}.state\t{_one_line(formula.state)}")
+        if formula.program:
+            print(f"{tag}.program\t{_one_line(formula.program)}")
+        print(f"{tag}.claim\t{_one_line(formula.claim)}")
     return EXIT_CLOSED
 
 
@@ -407,7 +417,12 @@ def _parser() -> argparse.ArgumentParser:
     sequent = commands.add_parser("sequent", help="print the sequent of one goal")
     sequent.add_argument("proof")
     sequent.add_argument("goal", type=int)
-    sequent.add_argument("--format", default="TEXT")
+    sequent.add_argument(
+        "--format",
+        default="TEXT",
+        choices=["TEXT", "UNICODE", "STRUCTURED"],
+        help="STRUCTURED splits each formula into state, program and claim",
+    )
     sequent.set_defaults(handler=_sequent)
 
     explain = commands.add_parser("explain", help="report why the open goals are not closing")
