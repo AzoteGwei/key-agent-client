@@ -147,7 +147,9 @@ def test_no_server_is_reported_with_a_command_that_starts_one(
     assert main(["--workspace", str(tmp_path), "list"]) == EXIT_CLOSED
     assert main(["--workspace", str(tmp_path), "version"]) == EXIT_FAILED
 
-    assert "java -jar" in capsys.readouterr().err
+    error = capsys.readouterr().err
+    assert "java" in error
+    assert "-Xmx4g" in error
 
 
 def test_a_stale_record_is_listed_as_stale(tmp_path, monkeypatch, capsys) -> None:

@@ -28,7 +28,11 @@ STATE_DIRECTORY = "keyext-server"
 
 #: What to run when no server is there. Kept as a template rather than prose because the caller
 #: most likely to read it is an agent, and an agent that is handed a command can fix this itself.
-START_HINT = "java -jar keyext.server-*-exe.jar --port 0 --workspace {workspace}"
+#:
+#: The heap setting is not decoration. KeY's own test JVMs are given 4g and its heavier modules
+#: 3g; on a real project the default heap runs out, and an OutOfMemoryError part way through a
+#: proof search is close to undiagnosable from the outside.
+START_HINT = "java -Xmx4g -jar keyext.server-*-exe.jar --port 0 --workspace {workspace}"
 
 
 def user_state_directory() -> Path:

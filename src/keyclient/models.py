@@ -21,6 +21,7 @@ __all__ = [
     "GoalDiagnostics",
     "Task",
     "Macro",
+    "SavedProof",
 ]
 
 
@@ -176,6 +177,19 @@ class GoalDiagnostics:
         nothing either way.
         """
         return self.last_search_outcome == "EXHAUSTED"
+
+
+@dataclass(frozen=True)
+class SavedProof:
+    """Where a proof was written.
+
+    That this exists at all means the file is on disk: a save that did not happen comes back as an
+    error, never as a path.
+    """
+
+    path: str
+    bytes: int
+    raw: dict[str, Any] = field(default_factory=dict, repr=False)
 
 
 @dataclass(frozen=True)

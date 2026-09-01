@@ -24,6 +24,7 @@ from .models import (
     Instance,
     Macro,
     ProofObligation,
+    SavedProof,
     Sequent,
     Statistics,
     StuckPoint,
@@ -171,6 +172,36 @@ class KeyClient:
         ``closed`` is the only answer to "is this verified", and it is the server's answer.
         """
         return _statistics(self.rpc.call("proof.getStatistics", {"proof": {"proofId": proof_id}}))
+
+    def save_proof(
+        self, proof_id: str, path: str | os.PathLike[str] | None = None, *, as_bundle: bool = False
+    ) -> SavedProof:
+        """Writes a proof to disk in KeY's own format.
+
+        Until a proof is written out it lives only as long as the server, which makes a result
+        unreviewable: there is nothing to read, re-check or commit. The file can be loaded by KeY
+        itself, not only by this server.
+
+        :param path: relative paths are taken against the server's workspace; omitted means the
+            proof is named after itself, in the workspace
+        :param as_bundle: write a ``.zproof`` carrying the sources rather than a bare ``.proof``
+        """
+        params: dict[str, Any] = {"proof": {"proofId": proof_id}}
+        if path is not None:
+            params["path"] = str(path)
+        if as_bundle:
+            params["asBundle"] = True
+        payload = self.rpc.call("proof.save", params)
+        return SavedProof(path=payload["path"], bytes=int(payload.get("bytes", 0)), raw=payload)
+
+    def load_proof(self, path: str | os.PathLike[str]) -> Task:
+        """Replays a saved proof into an environment of its own, returning at once.
+
+        A file that replays only in part is refused rather than served: the resulting proof looks
+        like any other from the outside, and the steps that are missing are exactly the ones that
+        failed.
+        """
+        return _task(self.rpc.call("proof.loadFile", {"path": str(path)}))
 
     def close_proof(self, proof_id: str) -> bool:
         """Releases a proof."""

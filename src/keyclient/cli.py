@@ -231,6 +231,37 @@ def _script(args: argparse.Namespace) -> int:
     return EXIT_CLOSED if statistics.closed else EXIT_NOT_CLOSED
 
 
+def _save(args: argparse.Namespace) -> int:
+    with _connect(args) as client:
+        saved = client.save_proof(args.proof, args.path, as_bundle=args.bundle)
+        # Asked of the proof after writing it, so the status still reports the proof rather than
+        # the file operation.
+        statistics = client.statistics(args.proof)
+    if args.json:
+        _json({"path": saved.path, "bytes": saved.bytes, "statistics": statistics.raw})
+    else:
+        print(f"path\t{saved.path}")
+        print(f"bytes\t{saved.bytes}")
+        print(f"closed\t{str(statistics.closed).lower()}")
+    return EXIT_CLOSED if statistics.closed else EXIT_NOT_CLOSED
+
+
+def _replay(args: argparse.Namespace) -> int:
+    with _connect(args) as client:
+        task = _await(client, client.load_proof(args.path), args)
+        if not task.succeeded:
+            return _report_failed_task(task, args)
+        proof_id = (task.result or {})["proof"]["proofId"]
+        statistics = client.statistics(proof_id)
+    if args.json:
+        _json({"proofId": proof_id, "statistics": statistics.raw})
+    else:
+        print(f"proof\t{proof_id}")
+        print(f"closed\t{str(statistics.closed).lower()}")
+        print(f"openGoals\t{statistics.open_goals}")
+    return EXIT_CLOSED if statistics.closed else EXIT_NOT_CLOSED
+
+
 def _watch(args: argparse.Namespace) -> int:
     with _connect(args) as client:
         for notification in client.events():
@@ -391,6 +422,21 @@ def _parser() -> argparse.ArgumentParser:
         "script", nargs="?", default=None, help="the script source; read from stdin when omitted"
     )
     script.set_defaults(handler=_script)
+
+    save = commands.add_parser("save", help="write a proof to disk")
+    save.add_argument("proof")
+    save.add_argument(
+        "path",
+        nargs="?",
+        default=None,
+        help="where to write it; omitted names it after itself in the workspace",
+    )
+    save.add_argument("--bundle", action="store_true", help="write a .zproof carrying the sources")
+    save.set_defaults(handler=_save)
+
+    replay = commands.add_parser("replay", help="load a saved proof back and check it")
+    replay.add_argument("path")
+    replay.set_defaults(handler=_replay)
 
     watch = commands.add_parser("watch", help="print task events as the server pushes them")
     watch.set_defaults(handler=_watch)

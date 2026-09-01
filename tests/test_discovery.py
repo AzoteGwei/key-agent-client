@@ -62,9 +62,13 @@ def test_resolve_says_how_to_start_one_when_there_is_none(state, tmp_path) -> No
     message = str(raised.value)
     # The most likely reader is an agent, and an agent that is handed a command can fix this
     # itself. A message that only said "not found" would leave it stuck.
-    assert "java -jar" in message
+    assert "java" in message
     assert "--workspace" in message
     assert str(tmp_path) in message
+    # And the command has to be one that works. KeY's own test JVMs are given 4g; on a real
+    # project the default heap runs out part way through a search, which from the outside is
+    # indistinguishable from the prover simply failing.
+    assert "-Xmx4g" in message
 
 
 def test_a_broken_record_costs_only_itself(state) -> None:
