@@ -1,0 +1,48 @@
+[project]
+name = "key-agent-client"
+version = "0.1.0"
+description = "A Python client for the headless KeY theorem prover server."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Azote", email = "azote@outlook.jp" }]
+keywords = ["key", "theorem-prover", "jml", "verification", "json-rpc"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Testing",
+]
+# No dependencies on purpose. Everything here is standard library: a client that an agent is
+# expected to install into whatever environment it already has should not bring a tree with it.
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/AzoteGwei/key-agent-client"
+Issues = "https://github.com/AzoteGwei/key-agent-client/issues"
+
+[project.scripts]
+key-agent = "keyclient.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[build-system]
+requires = ["uv_build>=0.12,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "keyclient"
+module-root = "src"
+
+[tool.ruff]
+line-length = 99
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
