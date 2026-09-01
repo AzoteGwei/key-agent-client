@@ -18,9 +18,11 @@ from typing import Any
 from .discovery import resolve
 from .exceptions import KeyClientError, TaskTimeoutError
 from .models import (
+    ApplicableRule,
     Environment,
     Goal,
     GoalDiagnostics,
+    GoalRules,
     Instance,
     Macro,
     ProofObligation,
@@ -313,6 +315,36 @@ class KeyClient:
             params["maxDepth"] = max_depth
         found = self.rpc.call("diagnostics.listStuckPoints", params)
         return [_diagnostics(each) for each in found]
+
+    def applicable_rules(
+        self, proof_id: str, goal_id: int, max_rules: int | None = None
+    ) -> GoalRules:
+        """Lists the rules that could still be applied to a goal by hand.
+
+        What to reach for when a search comes back ``EXHAUSTED`` with no stuck points: the
+        automatic strategy declined these, and a person picking one is how such a proof continues.
+        """
+        params: dict[str, Any] = {"goal": {"proofId": proof_id, "goalId": goal_id}}
+        if max_rules is not None:
+            params["maxRules"] = max_rules
+        payload = self.rpc.call("diagnostics.listApplicableRules", params)
+        return GoalRules(
+            goal_id=int(payload["goalId"]),
+            rules=[
+                ApplicableRule(
+                    rule_id=each["ruleId"],
+                    kind=each["kind"],
+                    needs_instantiation=bool(each.get("needsInstantiation")),
+                    needs_assumption=bool(each.get("needsAssumption")),
+                    side=each.get("side"),
+                    index=each.get("index"),
+                    raw=each,
+                )
+                for each in payload.get("rules", [])
+            ],
+            truncated=bool(payload.get("truncated")),
+            raw=payload,
+        )
 
     # -- tasks ----------------------------------------------------------------------------
 

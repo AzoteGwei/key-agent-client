@@ -97,9 +97,9 @@ part is the last thirty. `STRUCTURED` splits each one the way KeY itself does:
 
 ```python
 for formula in key.sequent(proof, goal_id, "STRUCTURED").formulas:
-    formula.state    # {heapAtPre:=heap || total:=0 || i:=1}
+    formula.state  # {heapAtPre:=heap || total:=0 || i:=1}
     formula.program  # { try { ... while (i <= _n) { total += i; i++; } ... } }
-    formula.claim    # … \<…\> ( result_sumTo >= 0 & ... )
+    formula.claim  # … \<…\> ( result_sumTo >= 0 & ... )
 ```
 
 The split comes from the position table KeY builds while printing — the same one its editor uses
@@ -129,6 +129,22 @@ for goal in key.stuck_points(proof):
 
 An empty list after `EXHAUSTED` and an empty list after a limit are the same list and opposite
 problems.
+
+### When the prover has given up
+
+An empty stuck-point list after `EXHAUSTED` means nothing is waiting on a specification and the
+automatic search has nothing left to try. What is left is what a person would do by hand:
+
+```python
+for rule in key.applicable_rules(proof, goal_id).rules:
+    rule.rule_id              # "geq_to_leq" — what a script's `rule` command takes
+    rule.needs_instantiation  # schema variables still to fill in
+    rule.needs_assumption     # an \assumes clause with no instantiation chosen
+```
+
+These are candidates, not promises. The two flags name the obstacles that can be seen, but only
+the top level of each formula is surveyed, so a rule listed once may still match inside a term and
+be refused as ambiguous — use `occ=` or `formula=` when that happens.
 
 ### Errors
 

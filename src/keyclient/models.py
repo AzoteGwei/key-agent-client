@@ -22,6 +22,8 @@ __all__ = [
     "GoalDiagnostics",
     "Task",
     "Macro",
+    "ApplicableRule",
+    "GoalRules",
     "SavedProof",
 ]
 
@@ -219,6 +221,41 @@ class SavedProof:
 
     path: str
     bytes: int
+    raw: dict[str, Any] = field(default_factory=dict, repr=False)
+
+
+@dataclass(frozen=True)
+class ApplicableRule:
+    """A rule that applies to a goal here and now.
+
+    One entry per place it applies, so a rule appearing twice really does match twice — which is
+    what makes a script's bare ``rule "name";`` refuse it as ambiguous.
+    """
+
+    rule_id: str
+    kind: str
+    needs_instantiation: bool = False
+    needs_assumption: bool = False
+    side: str | None = None
+    index: int | None = None
+    raw: dict[str, Any] = field(default_factory=dict, repr=False)
+
+
+@dataclass(frozen=True)
+class GoalRules:
+    """What could still be applied to a goal by hand.
+
+    The complement of :class:`GoalDiagnostics`: those say what wants to apply and cannot, this
+    says what could apply and the automatic strategy did not choose.
+
+    Nothing here is a promise. ``needs_instantiation`` and ``needs_assumption`` name the obstacles
+    that can be seen, but only the top level of each formula is surveyed, so a rule listed once
+    may still match inside a term and be ambiguous for that reason. Treat it as candidates.
+    """
+
+    goal_id: int
+    rules: list[ApplicableRule]
+    truncated: bool
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
 
 

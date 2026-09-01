@@ -180,6 +180,8 @@ def test_inspect_gives_a_different_conclusion_for_each_reason(fake, monkeypatch,
             },
         ],
     )
+    # Goal 2 is spent with nothing stuck, so inspect asks what could still be applied there.
+    fake.answer("diagnostics.listApplicableRules", {"goalId": 2, "truncated": False, "rules": []})
     built = server(fake, monkeypatch, tmp_path)
 
     answer = call(built, "key_inspect", proof_id="prf-1")
@@ -196,6 +198,69 @@ def test_inspect_gives_a_different_conclusion_for_each_reason(fake, monkeypatch,
     assert "while (i <= n)" in answer
     assert "must hold:" in answer
     assert "assumed:" in answer
+
+
+def test_inspect_offers_rules_only_where_they_are_the_thing_left(
+    fake, monkeypatch, tmp_path
+) -> None:
+    fake.answer("proof.getStatistics", {"closed": False, "openGoals": 1})
+    fake.answer(
+        "goal.list",
+        [
+            {
+                "goal": {"proofId": "prf-1", "goalId": 7},
+                "goalId": 7,
+                "nodeId": 7,
+                "isOpen": True,
+                "isLinked": False,
+            }
+        ],
+    )
+    fake.answer(
+        "goal.getSequent",
+        {
+            "antecedent": [],
+            "succedent": ["a >= 0"],
+            "format": "STRUCTURED",
+            "formulas": [{"side": "SUCCEDENT", "index": 0, "text": "a >= 0", "claim": "a >= 0"}],
+        },
+    )
+    fake.answer(
+        "diagnostics.listStuckPoints",
+        [{"goalId": 7, "truncated": False, "lastSearchOutcome": "EXHAUSTED", "stuckPoints": []}],
+    )
+    fake.answer(
+        "diagnostics.listApplicableRules",
+        {
+            "goalId": 7,
+            "truncated": False,
+            "rules": [
+                {
+                    "ruleId": "geq_to_leq",
+                    "kind": "FIND",
+                    "needsInstantiation": False,
+                    "needsAssumption": False,
+                },
+                {
+                    "ruleId": "cut",
+                    "kind": "NO_FIND",
+                    "needsInstantiation": True,
+                    "needsAssumption": False,
+                },
+            ],
+        },
+    )
+    built = server(fake, monkeypatch, tmp_path)
+
+    answer = call(built, "key_inspect", proof_id="prf-1")
+
+    # Offered only where they are the answer: the search is spent and nothing is waiting on a
+    # specification, so what a person could still apply is all that is left.
+    assert "geq_to_leq" in answer
+    # And the ones that cannot be applied as they stand are said to be, rather than listed
+    # alongside as if they were interchangeable.
+    assert "applicable as they stand" in answer
+    assert "needing an instantiation" in answer
 
 
 def test_a_save_that_failed_is_not_reported_as_a_file(fake, monkeypatch, tmp_path) -> None:

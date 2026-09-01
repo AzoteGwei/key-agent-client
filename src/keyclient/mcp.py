@@ -26,7 +26,7 @@ from typing import Any
 from .client import KeyClient
 from .discovery import START_HINT, resolve
 from .exceptions import InstanceNotFoundError, KeyClientError, KeyServerRpcError
-from .models import GoalDiagnostics, Sequent, Statistics, Task
+from .models import GoalDiagnostics, GoalRules, Sequent, Statistics, Task
 
 __all__ = ["build_server", "main"]
 
@@ -35,6 +35,9 @@ __all__ = ["build_server", "main"]
 #: Deliberately short. A tool call that blocks for an hour is worse for an agent than one that
 #: comes back and says it needs longer, because the second can be acted on.
 DEFAULT_BUDGET_MS = 60_000
+
+#: How many applicable rules key_inspect shows. Enough to choose from, not enough to drown in.
+MAX_RULES_SHOWN = 40
 
 NOT_A_SUCCESS = (
     "A finished search is not a proved contract. Read `closed`: it is KeY's own answer and the "
@@ -106,18 +109,55 @@ def _render_sequent(sequent: Sequent) -> str:
         return str(sequent)
 
     assumed = [each.text for each in sequent.formulas if each.side == "ANTECEDENT"]
+    to_show = [each for each in sequent.formulas if each.side == "SUCCEDENT"]
     lines = []
     if assumed:
         lines.append("assumed:\n  " + "\n  ".join(assumed))
-    for formula in sequent.formulas:
-        if formula.side != "SUCCEDENT":
-            continue
+    for formula in to_show:
         if formula.state:
             lines.append(f"symbolic state:\n  {formula.state}")
         if formula.program:
             lines.append(f"still to execute:\n  {formula.program}")
         lines.append(f"must hold:\n  {formula.claim}")
+    if not to_show:
+        # An empty succedent is not an empty answer. It says the assumptions above have to be
+        # contradictory, and a reader given a blank space would not work that out.
+        lines.append(
+            "must hold:\n  nothing — the goal is to show the assumptions above are contradictory."
+        )
     return "\n\n".join(lines)
+
+
+def _rules_to_try(rules: GoalRules) -> str:
+    """Lists what could be applied, readiest first.
+
+    Ordering by whether a rule can be applied as it stands is a fact about the rule, not an
+    opinion about how promising it is. It matters here because the list is long and the reader
+    sees the front of it.
+    """
+    ready = [
+        each.rule_id
+        for each in rules.rules
+        if not each.needs_instantiation and not each.needs_assumption
+    ]
+    blocked = [
+        each.rule_id for each in rules.rules if each.needs_instantiation or each.needs_assumption
+    ]
+    lines = []
+    if ready:
+        lines.append("rules applicable as they stand: " + ", ".join(dict.fromkeys(ready)))
+    if blocked:
+        lines.append(
+            "rules needing an instantiation or an assumption chosen: "
+            + ", ".join(dict.fromkeys(blocked))
+        )
+    if not lines:
+        return ""
+    lines.append(
+        'Apply one with key_script, e.g. `rule "name";`. A rule that matches in more than one '
+        "place is refused unless the script says which, with `occ=` or `formula=`."
+    )
+    return "\n".join(lines)
 
 
 def _goal_finding(goal: GoalDiagnostics, sequent: str) -> str:
@@ -250,8 +290,15 @@ def build_server(settings: Settings) -> Any:
                 finding = diagnostics.get(goal.goal_id)
                 if finding is None:
                     findings.append(f"goal {goal.goal_id}:\n{sequent}")
-                else:
-                    findings.append(_goal_finding(finding, sequent))
+                    continue
+                report = _goal_finding(finding, sequent)
+                if not finding.stuck_points and finding.prover_out_of_ideas:
+                    # Nothing is waiting on a specification and the search is spent, so what
+                    # could still be applied by hand is the only thing left to offer.
+                    report += "\n\n" + _rules_to_try(
+                        key.applicable_rules(proof_id, goal.goal_id, MAX_RULES_SHOWN)
+                    )
+                findings.append(report)
 
         more = (
             f"\n\n({len(goals) - max_goals} further open goal(s) not shown.)"

@@ -22,9 +22,11 @@ from .exceptions import (
     TaskTimeoutError,
 )
 from .models import (
+    ApplicableRule,
     Environment,
     Goal,
     GoalDiagnostics,
+    GoalRules,
     Instance,
     Macro,
     ProofObligation,
@@ -47,9 +49,11 @@ __all__ = [
     "KeyClientError",
     "KeyServerRpcError",
     "TaskTimeoutError",
+    "ApplicableRule",
     "Environment",
     "Goal",
     "GoalDiagnostics",
+    "GoalRules",
     "Instance",
     "Macro",
     "ProofObligation",
