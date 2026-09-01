@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -38,11 +39,23 @@ START_HINT = "java -Xmx4g -jar keyext.server-*-exe.jar --port 0 --workspace {wor
 def user_state_directory() -> Path:
     """Where instances publish themselves for this user.
 
-    ``XDG_STATE_HOME`` when it is set, otherwise the ``~/.local/state`` the specification names as
-    its default.
+    ``XDG_STATE_HOME`` decides it when set, on every platform, so a caller can always say where.
+    Otherwise the platform decides: ``%LOCALAPPDATA%`` on Windows, where per-machine state belongs
+    and is not roamed to other machines — which matters, since a record naming a port on this
+    machine is of no use on another. Elsewhere, the ``~/.local/state`` the XDG specification names
+    as its default.
+
+    This has to agree with the server, which chooses the same way; if it did not, the records it
+    writes would be looked for somewhere they are not.
     """
     configured = os.environ.get("XDG_STATE_HOME")
-    base = Path(configured) if configured else Path.home() / ".local" / "state"
+    if configured:
+        base = Path(configured)
+    elif sys.platform == "win32":
+        local = os.environ.get("LOCALAPPDATA")
+        base = Path(local) if local else Path.home() / "AppData" / "Local"
+    else:
+        base = Path.home() / ".local" / "state"
     return base / STATE_DIRECTORY / "instances"
 
 
@@ -158,6 +171,8 @@ def _is_alive(pid: int) -> bool:
     """
     if pid <= 0:
         return False
+    if sys.platform == "win32":
+        return _windows_process_exists(pid)
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -168,6 +183,32 @@ def _is_alive(pid: int) -> bool:
     except (OSError, ValueError):
         return False
     return True
+
+
+def _windows_process_exists(pid: int) -> bool:
+    """Asks Windows whether a process id is in use, without touching the process.
+
+    ``os.kill(pid, 0)`` is the usual way to ask this and must never be used here: on Windows any
+    signal other than the two console events is not a signal at all but a call to
+    TerminateProcess, so the probe would kill the server it was asked about. Listing what is
+    running would stop everything that is running.
+
+    Opening a query handle asks the same question and cannot do anything to the process.
+    """
+    import ctypes
+
+    # PROCESS_QUERY_LIMITED_INFORMATION: enough to be told the id is in use, and not enough to
+    # read, write or end anything.
+    query_limited_information = 0x1000
+    access_denied = 5
+
+    kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+    handle = kernel32.OpenProcess(query_limited_information, False, pid)
+    if handle:
+        kernel32.CloseHandle(handle)
+        return True
+    # Refused rather than absent: something is there, it is simply not ours to look at.
+    return kernel32.GetLastError() == access_denied
 
 
 def _same_path(left: str, right: str) -> bool:

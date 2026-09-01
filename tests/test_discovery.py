@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 
 import pytest
 
-from keyclient.discovery import list_instances, resolve
+from keyclient.discovery import list_instances, resolve, user_state_directory
 from keyclient.exceptions import InstanceNotFoundError
 
 
@@ -79,6 +80,36 @@ def test_a_broken_record_costs_only_itself(state) -> None:
     found = list_instances()
 
     assert [each.instance_id for each in found] == ["inst-good"]
+
+
+def test_the_liveness_probe_never_signals_the_process(monkeypatch) -> None:
+    import keyclient.discovery as discovery
+
+    calls = []
+    monkeypatch.setattr(discovery.os, "kill", lambda *args: calls.append(args))
+    monkeypatch.setattr(discovery.sys, "platform", "win32")
+    monkeypatch.setattr(discovery, "_windows_process_exists", lambda pid: True)
+
+    assert discovery._is_alive(os.getpid()) is True
+    # On Windows os.kill is not a probe: any signal but the two console events is a call to
+    # TerminateProcess. Reaching it here would mean listing what is running stops it.
+    assert calls == []
+
+
+def test_the_state_directory_follows_the_platform(tmp_path, monkeypatch) -> None:
+    monkeypatch.delenv("XDG_STATE_HOME", raising=False)
+
+    monkeypatch.setattr("keyclient.discovery.sys.platform", "win32")
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "AppData" / "Local"))
+    assert user_state_directory().is_relative_to(tmp_path / "AppData" / "Local")
+
+    monkeypatch.setattr("keyclient.discovery.sys.platform", "linux")
+    assert user_state_directory().is_relative_to(Path.home() / ".local" / "state")
+
+    # And an explicit setting wins on either, which is what lets these tests run without writing
+    # into the developer's own home directory.
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "chosen"))
+    assert user_state_directory().is_relative_to(tmp_path / "chosen")
 
 
 def test_an_absent_registry_is_an_empty_list(tmp_path, monkeypatch) -> None:
