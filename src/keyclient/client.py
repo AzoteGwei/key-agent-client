@@ -359,5 +359,6 @@ def _diagnostics(payload: dict[str, Any]) -> GoalDiagnostics:
             for each in payload.get("stuckPoints", [])
         ],
         truncated=bool(payload.get("truncated")),
+        last_search_outcome=payload.get("lastSearchOutcome"),
         raw=payload,
     )

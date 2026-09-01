@@ -154,13 +154,28 @@ class GoalDiagnostics:
     """What stands in the way of one goal.
 
     An empty ``stuck_points`` is a finding, not a blank: no rule is waiting on anything, so the
-    goal is not under-specified and is most likely simply not provable.
+    goal is not waiting on a specification you could write.
+
+    Read it with :attr:`last_search_outcome`. Empty after ``EXHAUSTED`` means the prover tried
+    everything it knows and got no further, which calls for a script, a solver or an interactive
+    step. Empty after a limit means it never finished looking, which calls for more budget. The
+    two are the same empty list and opposite problems.
     """
 
     goal_id: int
     stuck_points: list[StuckPoint]
     truncated: bool
+    last_search_outcome: str | None = None
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
+
+    @property
+    def prover_out_of_ideas(self) -> bool:
+        """Whether the last automatic search ended having nothing left to try.
+
+        ``False`` also when no search has been run, since a search that never happened establishes
+        nothing either way.
+        """
+        return self.last_search_outcome == "EXHAUSTED"
 
 
 @dataclass(frozen=True)

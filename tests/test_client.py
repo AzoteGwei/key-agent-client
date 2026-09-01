@@ -113,6 +113,27 @@ def test_an_empty_stuck_point_list_is_preserved_as_a_finding(fake: FakeServer) -
     assert per_goal[0].truncated is False
 
 
+def test_an_empty_list_means_two_different_things(fake: FakeServer) -> None:
+    fake.answer(
+        "diagnostics.listStuckPoints",
+        [
+            {"goalId": 1, "stuckPoints": [], "truncated": False, "lastSearchOutcome": "EXHAUSTED"},
+            {"goalId": 2, "stuckPoints": [], "truncated": False, "lastSearchOutcome": "MAX_RULES"},
+            {"goalId": 3, "stuckPoints": [], "truncated": False},
+        ],
+    )
+
+    spent, cut_short, never_run = client(fake).stuck_points("prf-1")
+
+    # Same empty list, opposite problems: one needs a script or a solver, the other just needs a
+    # bigger budget. Collapsing them would send a caller off doing the wrong work.
+    assert spent.prover_out_of_ideas is True
+    assert cut_short.prover_out_of_ideas is False
+    # And a search that never ran establishes neither.
+    assert never_run.last_search_outcome is None
+    assert never_run.prover_out_of_ideas is False
+
+
 def test_a_missing_invariant_keeps_its_source_position(fake: FakeServer) -> None:
     fake.answer(
         "diagnostics.explainGoal",

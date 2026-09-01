@@ -97,9 +97,22 @@ nothing is waiting on a specification you could write.
 
 It does not mean the goal is false. It covers KeY's built-in rules — loop invariants, contracts,
 one-step simplification — and not its taclets, so a goal left open because the automatic strategy
-ran out of moves also comes back with nothing stuck. Read it together with the search's own
-outcome: `COMPLETED` with open goals and no stuck points means the prover finished and got no
-further, which usually calls for a proof script rather than more specification.
+ran out of moves also comes back with nothing stuck.
+
+`last_search_outcome` is what tells those apart:
+
+```python
+for goal in key.stuck_points(proof):
+    if goal.stuck_points:
+        ...  # a specification is missing; the points say where
+    elif goal.prover_out_of_ideas:
+        ...  # the prover gave everything: script, solver or interaction
+    else:
+        ...  # it never finished looking: raise the budget
+```
+
+An empty list after `EXHAUSTED` and an empty list after a limit are the same list and opposite
+problems.
 
 ### Errors
 
