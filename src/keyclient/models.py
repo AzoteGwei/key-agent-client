@@ -226,19 +226,28 @@ class SavedProof:
 
 @dataclass(frozen=True)
 class ApplicableRule:
-    """A rule that applies to a goal here and now.
+    """A rule that applies to a goal here and now, and how to write it down.
 
-    One entry per place it applies, so a rule appearing twice really does match twice — which is
-    what makes a script's bare ``rule "name";`` refuse it as ambiguous.
+    :attr:`script` is the useful field. A rule name alone is often not enough — a third to a half
+    of the rules offered on a real goal match in more than one place, and a script naming one
+    without saying which is refused — so the line that applies it is given rather than left to be
+    reconstructed. It is ``None`` when the rule needs input that cannot be guessed.
     """
 
     rule_id: str
     kind: str
+    occurrences: int = 1
     needs_instantiation: bool = False
     needs_assumption: bool = False
     side: str | None = None
     index: int | None = None
+    script: str | None = None
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
+
+    @property
+    def applicable_as_is(self) -> bool:
+        """Whether :attr:`script` will apply this rule with no further input."""
+        return self.script is not None
 
 
 @dataclass(frozen=True)
@@ -248,9 +257,8 @@ class GoalRules:
     The complement of :class:`GoalDiagnostics`: those say what wants to apply and cannot, this
     says what could apply and the automatic strategy did not choose.
 
-    Nothing here is a promise. ``needs_instantiation`` and ``needs_assumption`` name the obstacles
-    that can be seen, but only the top level of each formula is surveyed, so a rule listed once
-    may still match inside a term and be ambiguous for that reason. Treat it as candidates.
+    Rules carrying a ``script`` can be applied as they stand. The rest are offered because they
+    are genuinely applicable and a caller may know what to supply.
     """
 
     goal_id: int

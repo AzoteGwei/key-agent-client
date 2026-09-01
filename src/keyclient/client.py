@@ -334,10 +334,12 @@ class KeyClient:
                 ApplicableRule(
                     rule_id=each["ruleId"],
                     kind=each["kind"],
+                    occurrences=int(each.get("occurrences", 1)),
                     needs_instantiation=bool(each.get("needsInstantiation")),
                     needs_assumption=bool(each.get("needsAssumption")),
                     side=each.get("side"),
                     index=each.get("index"),
+                    script=each.get("script"),
                     raw=each,
                 )
                 for each in payload.get("rules", [])

@@ -135,29 +135,46 @@ def _rules_to_try(rules: GoalRules) -> str:
     opinion about how promising it is. It matters here because the list is long and the reader
     sees the front of it.
     """
-    ready = [
+    ready = [each for each in rules.rules if each.applicable_as_is]
+    # Two different reasons for having no line, and they call for different responses: one can be
+    # got past by supplying what is missing, the other cannot be got past through a script at all.
+    needs_input = [
         each.rule_id
         for each in rules.rules
-        if not each.needs_instantiation and not each.needs_assumption
+        if not each.applicable_as_is and (each.needs_instantiation or each.needs_assumption)
     ]
-    blocked = [
-        each.rule_id for each in rules.rules if each.needs_instantiation or each.needs_assumption
+    not_scriptable = [
+        each.rule_id
+        for each in rules.rules
+        if not each.applicable_as_is and not each.needs_instantiation and not each.needs_assumption
     ]
     lines = []
     if ready:
-        lines.append("rules applicable as they stand: " + ", ".join(dict.fromkeys(ready)))
-    if blocked:
+        # The line, not the name. A name still has to be turned into something that applies, and
+        # that is exactly the step that goes wrong.
         lines.append(
-            "rules needing an instantiation or an assumption chosen: "
-            + ", ".join(dict.fromkeys(blocked))
+            "scripts that apply here, ready to pass to key_script:\n  "
+            + "\n  ".join(each.script for each in ready if each.script)
         )
-    if not lines:
-        return ""
-    lines.append(
-        'Apply one with key_script, e.g. `rule "name";`. A rule that matches in more than one '
-        "place is refused unless the script says which, with `occ=` or `formula=`."
-    )
-    return "\n".join(lines)
+        several = [each for each in ready if each.occurrences > 1]
+        if several:
+            lines.append(
+                "Some match in more than one place; raise the occurrence number to reach the "
+                "others, counting from zero: "
+                + ", ".join(f"{each.rule_id} ×{each.occurrences}" for each in several)
+            )
+    if needs_input:
+        lines.append(
+            "applicable, but a script has to supply an instantiation or choose an assumption "
+            "for them: " + ", ".join(dict.fromkeys(needs_input))
+        )
+    if not_scriptable:
+        lines.append(
+            "applicable, but not reachable through a proof script at all — the rule command "
+            "cannot apply a rule that matches no position: "
+            + ", ".join(dict.fromkeys(not_scriptable))
+        )
+    return "\n\n".join(lines)
 
 
 def _goal_finding(goal: GoalDiagnostics, sequent: str) -> str:

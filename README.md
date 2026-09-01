@@ -137,9 +137,9 @@ automatic search has nothing left to try. What is left is what a person would do
 
 ```python
 for rule in key.applicable_rules(proof, goal_id).rules:
-    rule.rule_id              # "geq_to_leq" — what a script's `rule` command takes
+    rule.rule_id  # "geq_to_leq" — what a script's `rule` command takes
     rule.needs_instantiation  # schema variables still to fill in
-    rule.needs_assumption     # an \assumes clause with no instantiation chosen
+    rule.needs_assumption  # an \assumes clause with no instantiation chosen
 ```
 
 These are candidates, not promises. The two flags name the obstacles that can be seen, but only

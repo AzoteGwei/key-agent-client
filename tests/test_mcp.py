@@ -238,12 +238,23 @@ def test_inspect_offers_rules_only_where_they_are_the_thing_left(
                 {
                     "ruleId": "geq_to_leq",
                     "kind": "FIND",
+                    "occurrences": 1,
                     "needsInstantiation": False,
                     "needsAssumption": False,
+                    "script": 'rule "geq_to_leq";',
+                },
+                {
+                    "ruleId": "hide_left",
+                    "kind": "FIND",
+                    "occurrences": 3,
+                    "needsInstantiation": False,
+                    "needsAssumption": False,
+                    "script": 'rule "hide_left" occ=0;',
                 },
                 {
                     "ruleId": "cut",
                     "kind": "NO_FIND",
+                    "occurrences": 1,
                     "needsInstantiation": True,
                     "needsAssumption": False,
                 },
@@ -256,11 +267,17 @@ def test_inspect_offers_rules_only_where_they_are_the_thing_left(
 
     # Offered only where they are the answer: the search is spent and nothing is waiting on a
     # specification, so what a person could still apply is all that is left.
-    assert "geq_to_leq" in answer
-    # And the ones that cannot be applied as they stand are said to be, rather than listed
-    # alongside as if they were interchangeable.
-    assert "applicable as they stand" in answer
-    assert "needing an instantiation" in answer
+    #
+    # And offered as lines, not names. A name still has to be turned into something that applies,
+    # and that is the step that goes wrong — hide_left matches three times, so a script naming it
+    # alone is refused and the occurrence has to be in there.
+    assert 'rule "geq_to_leq";' in answer
+    assert 'rule "hide_left" occ=0;' in answer
+    assert "counting from zero" in answer
+    # The one that cannot be applied as it stands is named without a line, rather than listed
+    # alongside as though it were interchangeable.
+    assert "supply an instantiation" in answer
+    assert "cut" in answer
 
 
 def test_a_save_that_failed_is_not_reported_as_a_file(fake, monkeypatch, tmp_path) -> None:
