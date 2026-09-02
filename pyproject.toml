@@ -11,7 +11,6 @@ keywords = ["key", "theorem-prover", "jml", "verification", "json-rpc"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Topic :: Software Development :: Testing",
 ]
