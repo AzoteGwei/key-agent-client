@@ -59,13 +59,20 @@ with KeyClient.discover(workspace="/path/to/project") as key:
     print("closed" if stats.closed else f"{stats.open_goals} goal(s) still open")
 ```
 
-Or from a shell:
+Or from a shell. This one runs as written, against the example in this repository:
 
 ```sh
-key-agent load /path/to/project
-key-agent prove env-1a2b3c4d 'Max[Max::max(int,int)].JML normal_behavior operation contract.0'
-key-agent explain prf-9f8e7d6c
+java -Xmx4g -jar keyext.server-*-exe.jar --port 0 --workspace examples/first-proof &
+
+key-agent load .
+# env	env-e84opq9w                     your id will differ
+key-agent prove env-e84opq9w 'Max[Max::max(int,int)].JML normal_behavior operation contract.0'
+# closed	true
 ```
+
+Start there. [`examples/first-proof`][example] holds three contracts — one that closes, one whose
+code is wrong, one missing a loop invariant — so the first answer you see is one you already know,
+and a `closed false` afterwards is about the code rather than about the setup.
 
 ## The one thing to know
 
@@ -82,6 +89,7 @@ a succeeded task with three open goals.
 | --- | --- |
 | Drive the prover yourself, from Python or the shell | [Usage guide][guide] |
 | Look up a method, a field or an error code | [API reference][api] |
+| Check that your setup works at all | [`examples/first-proof`][example] |
 | Give an agent the prover over MCP | [MCP server][mcp] |
 | Install the Claude Code skill | [`skills/key-prover`][skill] |
 
@@ -112,5 +120,6 @@ communicates with it over a network protocol.
 [guide]: https://github.com/AzoteGwei/key-agent-client/blob/main/docs/guide.md
 [api]: https://github.com/AzoteGwei/key-agent-client/blob/main/docs/api.md
 [mcp]: https://github.com/AzoteGwei/key-agent-client/blob/main/docs/mcp.md
+[example]: https://github.com/AzoteGwei/key-agent-client/blob/main/examples/first-proof
 [skill]: https://github.com/AzoteGwei/key-agent-client/blob/main/skills/key-prover/SKILL.md
 [vocabulary]: https://github.com/AzoteGwei/key-agent-client/blob/main/docs/guide.md#vocabulary

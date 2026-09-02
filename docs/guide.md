@@ -114,6 +114,101 @@ and when the proof does not close there is nothing to look at but a count of ope
 server keeps the project warm and can be asked *what* is open, what the sequent looks like, and
 which rule wanted to apply and could not.
 
+## Your first proof
+
+Do this once before pointing anything at your own code. Until you have watched a proof close, one
+that does not close is ambiguous in the worst way there is: a wrong jar, too small a heap, a
+missing class path and a contract that simply does not hold all look the same from outside.
+
+`examples/first-proof` in this repository removes that ambiguity. Three classes, one load, and the
+three outcomes this workflow can produce. Start a server on it:
+
+```sh
+java -Xmx4g -jar keyext.server-*-exe.jar --port 0 --workspace examples/first-proof
+```
+
+Then:
+
+```sh
+key-agent load .
+# task	task-5llri3hz	LOAD      on stderr, so a --json pipe stays clean
+# env	env-e84opq9w              your id will differ; use yours below
+```
+
+The server resolves paths against the workspace it was started with, which is why `.` is the whole
+path here. Run this from another directory and it still means the example; pass an absolute path
+when you mean something else.
+
+```sh
+key-agent obligations env-e84opq9w
+# BrokenMax	max(int, int)	FUNCTIONAL_OPERATION	open	BrokenMax[BrokenMax::max(int,int)].JML normal_behavior operation contract.0
+# Max	max(int, int)	FUNCTIONAL_OPERATION	open	Max[Max::max(int,int)].JML normal_behavior operation contract.0
+# Summer	sumTo(int)	FUNCTIONAL_OPERATION	open	Summer[Summer::sumTo(int)].JML normal_behavior operation contract.0
+```
+
+### One closes
+
+```sh
+key-agent prove env-e84opq9w 'Max[Max::max(int,int)].JML normal_behavior operation contract.0'
+# proof	prf-d3m9x0f8
+# outcome	EXHAUSTED
+# closed	true
+# openGoals	0
+```
+
+Exit status `0`. That is the whole chain working, and it is the only thing that tells you a later
+`closed false` is about the code rather than about the setup.
+
+Note `outcome EXHAUSTED` standing next to `closed true`. The outcome describes the *search* — it
+stopped because no rule applied any more — and carries no verdict at all. Read `closed`.
+
+### One is wrong
+
+```sh
+key-agent prove env-e84opq9w 'BrokenMax[BrokenMax::max(int,int)].JML normal_behavior operation contract.0'
+# proof	prf-6ri7tqrm
+# outcome	EXHAUSTED
+# closed	false
+# openGoals	1
+```
+
+Exit status `1`, and `1` is the correct answer here, not a failure — see [exit
+status](#exit-status-means-something). Ask why:
+
+```sh
+key-agent explain prf-6ri7tqrm
+# 54	no-rule-applies	nothing is waiting on a specification; the goal is likely not provable
+```
+
+`BrokenMax` carries byte-for-byte the specification `Max` carries and returns the first argument
+instead of the larger one. Nothing is missing that you could go and write; the claim is false, and
+the prover ran out of moves trying to prove it. Anything that reports the same verdict for this contract
+and the previous one is broken, whichever verdict it reports.
+
+### One is under-specified
+
+```sh
+key-agent prove env-e84opq9w 'Summer[Summer::sumTo(int)].JML normal_behavior operation contract.0'
+# proof	prf-30ww9bfm
+# outcome	EXHAUSTED
+# closed	false
+# openGoals	1
+
+key-agent explain prf-30ww9bfm
+# 28	NEEDS_SPEC	LoopScopeInvariantRule	file:///.../examples/first-proof/Summer.java:25
+# 28	NEEDS_SPEC	WhileInvariantRule	file:///.../examples/first-proof/Summer.java:25
+```
+
+The same exit status as `BrokenMax`, the opposite cause. `sumTo` is correct; it has no
+`loop_invariant`, so the prover has nothing to reason about the loop with. `NEEDS_SPEC` and a line
+number mean the next move is to open `Summer.java:25` and write JML — not to give the search a
+larger budget, which is what an unread `closed false` usually gets.
+
+Those three are the whole skill. Every proof that does not close is one of them: the setup is
+wrong, the code is wrong, or something has not been specified yet.
+[Step 5](#5-when-it-did-not-close-find-out-which-of-three-things-happened) is the same distinction
+made without an example in front of you.
+
 ## What to point `load` at
 
 For a directory of Java sources, pass the directory. For anything that needs a class path, a
@@ -199,6 +294,9 @@ for goal in key.stuck_points(proof):
 
 Those three branches want three different responses, and running the wrong one wastes the loop:
 raising a budget that was not the problem, or rewriting a specification that was fine.
+
+[Your first proof](#your-first-proof) is the first two of these branches with real output under
+them.
 
 ### 6. Read the goal
 

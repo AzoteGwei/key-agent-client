@@ -38,3 +38,52 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pytest
+
+  example:
+    name: The worked example still proves
+    runs-on: ubuntu-latest
+    # examples/first-proof is the one target whose answers are supposed to be known, and the guide
+    # prints its output line for line. Nothing else in this file would notice the day that stops
+    # being true: every other test talks to a fake, which answers what it was told to.
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.7"
+          enable-cache: true
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          # key.core still reaches for Swing, so the JDK has to carry java.desktop. Temurin does.
+          java-version: "21"
+      - run: uv sync --locked --group dev
+
+      - name: Fetch the server
+        # The asset name carries KeY's version and the server's, so it is matched, not written
+        # down. `keyext.server-` and nothing looser: the same release ships the desktop
+        # application, which is three times the size and does not speak JSON-RPC.
+        run: gh release download --repo AzoteGwei/key --pattern 'keyext.server-*-exe.jar'
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Start it
+        run: |
+          # Logged to a file rather than to the step, so the server does not write into a pipe
+          # that closes the moment this step ends.
+          nohup java -Xmx4g -jar keyext.server-*-exe.jar \
+            --port 0 --workspace examples/first-proof > server.log 2>&1 &
+          # The tests skip themselves when no server is running, and a skipped test is a green
+          # tick over nothing. Establish the server is up here, where not finding it fails.
+          for _ in $(seq 30); do
+            uv run key-agent list | grep -q alive && exit 0
+            sleep 1
+          done
+          echo "the server never published itself" >&2
+          cat server.log >&2
+          exit 1
+
+      - run: uv run pytest tests/test_acceptance.py -v
+
+      - name: What the server said
+        if: failure()
+        run: cat server.log

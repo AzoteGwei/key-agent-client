@@ -64,6 +64,15 @@ git clone https://github.com/AzoteGwei/key && cd key
 Either way, the JDK that runs it must include `java.desktop`. `key.core` still reaches for Swing
 in places, so a trimmed jlink image will not start the server.
 
+### When you suspect the setup rather than the code
+
+There is a target whose answers are known:
+<https://github.com/AzoteGwei/key-agent-client/tree/main/examples/first-proof>. Three classes —
+one that closes, one whose code is wrong, one missing a loop invariant. Point `key_load` at a
+checkout of it and prove `Max`; if that does not come back `closed: true`, the problem is the jar,
+the heap or the server, and nothing you do to the user's specifications will help. Reach for this
+when a project behaves in a way you cannot explain, not on every run.
+
 ## The loop
 
 1. **`key_load(path)`** — a directory of Java sources, or the project's own `.key` file when it

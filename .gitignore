@@ -6,3 +6,9 @@ build/
 *.egg-info/
 .pytest_cache/
 .ruff_cache/
+
+# A server started on examples/first-proof publishes itself into the workspace, and `key-agent
+# save` without a path writes the proof there too. Both are the guide working, not changes.
+.keyext-server/
+*.proof
+*.zproof
