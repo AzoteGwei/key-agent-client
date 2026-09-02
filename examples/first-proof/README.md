@@ -46,10 +46,51 @@ still fails the way it is documented to.
 mkdir -p /tmp/summer && cp Summer.java /tmp/summer/
 ```
 
+### First, pin what you are proving under
+
+KeY's proof settings live in the user's home directory, not in the project, and they change the
+answer. Two of them decide this walk-through. `intRules` says whether `int` arithmetic wraps the
+way Java's does or is treated as unbounded; `NON_LIN_ARITH_OPTIONS_KEY` says whether the prover
+will reason about multiplication at all. A machine with no settings file gets KeY's own defaults —
+overflow ignored, non-linear arithmetic off — and under those the same source proves differently
+from what is printed below.
+
+That is worth more than a footnote. **A contract proved with overflow ignored is a weaker result
+than the same contract proved under `javaSemantics`, and `closed: true` does not say which one you
+got.** If a project cares, it says so, and the place it says so is its `.key` file — which is what
+KeY's own examples do. Save this beside the copy as `/tmp/summer/project.key`:
+
+```key
+\settings {
+"
+[Choice]DefaultChoices=intRules-intRules\\:javaSemantics
+[StrategyProperty]NON_LIN_ARITH_OPTIONS_KEY=NON_LIN_ARITH_DEF_OPS
+"
+}
+
+\javaSource ".";
+
+\chooseContract "Summer[Summer::sumTo(int)].JML normal_behavior operation contract.0";
+```
+
+**Load the `.key` file from here on, not the directory.** A directory load ignores any `.key` file
+sitting in it and runs under whatever the machine has, which is the whole failure this is here to
+prevent. Loading the `.key` still lists every contract under its `\javaSource`, so nothing is lost
+by it.
+
+Two things it does that are worth knowing. `\chooseContract` makes KeY create that proof at load
+time, so `obligations` reports the contract as `proved` before you have run anything — read
+`closed` from `prove`, not from that column. And KeY writes the settings it took from the file
+back into `~/.key`, so they become the machine's defaults afterwards; on your own machine that is
+a real change, not just a change for this run.
+
+The setup check above stays on a directory load on purpose: those three answers are the same
+under any settings, which is what makes them worth checking a setup with.
+
 ### 1. Ask what is missing
 
 ```sh
-key-agent load /tmp/summer
+key-agent load /tmp/summer/project.key
 # env	env-bayk1n0c
 key-agent prove env-bayk1n0c 'Summer[Summer::sumTo(int)].JML normal_behavior operation contract.0'
 # outcome	EXHAUSTED
@@ -88,7 +129,7 @@ Then prove it again. **A new `load` is needed:** the server holds the sources it
 editing a file underneath it changes nothing until it is loaded again.
 
 ```sh
-key-agent load /tmp/summer
+key-agent load /tmp/summer/project.key
 # env	env-7pm2ktx4                                    a new one; the old env is the old text
 key-agent prove env-7pm2ktx4 'Summer[Summer::sumTo(int)].JML normal_behavior operation contract.0'
 # closed	false
@@ -113,14 +154,18 @@ has nothing to point at, read the goal itself:
 
 ```sh
 key-agent sequent prf-3qub569s 1275 --format STRUCTURED
+# A.claim	total_0 <= 4294967295 + i_0 * -1
+# A.claim	(2147483648 + i_0 + total_0) / 4294967296 = 1
 # A.claim	total_0 >= 2147483648 + i_0 * -1
+# ...
 # A.claim	total_0 <= 2147483647
-# A.claim	n >= i_0
 ```
 
-Read the first line as `total + i >= 2147483648`. The prover has reached a state where the next
-`total += i` leaves the range of an `int`, and `2147483648` is `Integer.MAX_VALUE + 1`. This is
-not a proof problem. It is an overflow in the method.
+Read the third line as `total + i >= 2147483648`, and `2147483648` as `Integer.MAX_VALUE + 1`.
+The division by `4294967296` above it is the wrap itself: 2^32, arithmetic modulo the width of an
+`int`. The prover has reached a state where the next `total += i` leaves the range of the type.
+This is not a proof problem. It is an overflow in the method — and it is visible only because the
+`.key` file asked for `javaSemantics`.
 
 ### 4. Confirm it outside the prover
 
@@ -201,7 +246,7 @@ public final class Summer {
 ```
 
 ```sh
-key-agent load /tmp/summer
+key-agent load /tmp/summer/project.key
 key-agent prove env-q4v8rz1c 'Summer[Summer::sumTo(int)].JML normal_behavior operation contract.0'
 # proof	prf-1gdalf5f
 # outcome	EXHAUSTED

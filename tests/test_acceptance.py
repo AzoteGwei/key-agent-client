@@ -112,24 +112,30 @@ def test_summer_names_the_line_that_needs_an_invariant(proved) -> None:
         assert "while" in source[point.source["line"] - 1]
 
 
-def _the_tutorial_s_finished_summer() -> str:
-    """The last complete class the walk-through shows, which is the one it says closes."""
+def _the_tutorial_shows(fence: str, must_contain: str) -> str:
+    """The last block of one kind the walk-through prints, which is the one it ends on."""
     text = (EXAMPLE / "README.md").read_text(encoding="utf-8")
-    shown = re.findall(r"```java\n(.*?)```", text, re.S)
-    blocks = [each for each in shown if "class Summer" in each]
-    assert blocks, "the tutorial no longer shows a complete Summer to copy"
+    shown = re.findall(rf"```{fence}\n(.*?)```", text, re.S)
+    blocks = [each for each in shown if must_contain in each]
+    assert blocks, f"the tutorial no longer shows a {fence} block containing {must_contain!r}"
     return blocks[-1]
 
 
 def test_the_tutorial_closes_what_it_says_it_closes(loaded, tmp_path) -> None:
     client, _ = loaded
-    # The walk-through ends on a specification and the words "exit status 0". Proving the block it
-    # prints is the only way that claim stays true through a KeY upgrade — and a tutorial whose
+    # The walk-through ends on a specification and the words "exit status 0". Proving the blocks
+    # it prints is the only way that claim stays true through a KeY upgrade — and a tutorial whose
     # last step does not work is worse than none, because it is followed rather than skimmed.
-    (tmp_path / "Summer.java").write_text(_the_tutorial_s_finished_summer(), encoding="utf-8")
+    #
+    # Both blocks, not just the Java. KeY's proof settings live in the user's home directory and
+    # decide the answer: under its defaults, overflow is ignored and non-linear arithmetic is off,
+    # and this specification does not close. The .key file is what makes the walk-through the same
+    # on every machine, so proving without it would test the machine rather than the tutorial.
+    (tmp_path / "Summer.java").write_text(_the_tutorial_shows("java", "class Summer"), "utf-8")
+    (tmp_path / "project.key").write_text(_the_tutorial_shows("key", "chooseContract"), "utf-8")
 
-    task = client.wait_for_task(client.load(tmp_path).task_id, timeout=600.0)
-    assert task.succeeded, f"the tutorial's Summer did not load: {task.error}"
+    task = client.wait_for_task(client.load(tmp_path / "project.key").task_id, timeout=600.0)
+    assert task.succeeded, f"the tutorial's project did not load: {task.error}"
 
     proof_id = client.start_proof(task.result["envId"], SUMMER)
     search = client.wait_for_task(client.run_auto(proof_id, BUDGET_MS).task_id, timeout=600.0)
