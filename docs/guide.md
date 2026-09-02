@@ -54,14 +54,10 @@ No dependencies, Python 3.10 or newer. The MCP server is an extra:
 ## Starting a server
 
 This client does not start one, on purpose: a library that spawns JVMs is a library that owns
-processes it cannot supervise. Run it yourself, from a checkout of
-[this KeY fork](https://github.com/AzoteGwei/key) — `keyext.server` is not an upstream KeY
-component:
+processes it cannot supervise. Run it yourself:
 
 ```sh
-./gradlew :keyext.server:shadowJar
-java -Xmx4g -jar keyext.server/build/libs/keyext.server-*-exe.jar \
-  --port 0 --workspace /path/to/project
+java -Xmx4g -jar keyext.server-*-exe.jar --port 0 --workspace /path/to/project
 ```
 
 **Give it `-Xmx4g`.** KeY is memory-hungry and a real proof will exhaust the default heap part way
@@ -72,6 +68,43 @@ to this client. Servers shut down after 30 minutes idle unless told otherwise.
 
 The server's JDK must include the `java.desktop` module — `key.core` still touches Swing classes
 in a few places, so a jlink-trimmed image will not start it.
+
+### Getting the jar
+
+`keyext.server` is not an upstream KeY component. It lives in
+[this KeY fork](https://github.com/AzoteGwei/key), and each release there carries a prebuilt shadow
+jar — the same artefact a build produces, several minutes sooner.
+
+The asset name carries KeY's version and the server's both, as in
+`keyext.server-3.1.0-v0.1.0-exe.jar`, so it is not something to write down anywhere. Ask the latest
+release for it:
+
+```sh
+gh release download --repo AzoteGwei/key --pattern 'keyext.server-*-exe.jar'
+```
+
+Without `gh`, the same thing off the public API, which needs no token:
+
+```sh
+url=$(curl -fsSL https://api.github.com/repos/AzoteGwei/key/releases/latest | python3 -c '
+import json, sys
+assets = json.load(sys.stdin)["assets"]
+print(next(a["browser_download_url"] for a in assets
+           if a["name"].startswith("keyext.server-") and a["name"].endswith("-exe.jar")))
+')
+curl -fsSLO "$url"
+```
+
+Match `keyext.server-` and nothing looser. The same release also ships `key-3.1.0-v0.1.0-exe.jar`,
+which is the KeY desktop application: three times the size, and it opens a window instead of a
+port.
+
+To build it instead — which is what you want if you have a change of your own in the server — from
+a checkout of that fork:
+
+```sh
+./gradlew :keyext.server:shadowJar    # -> keyext.server/build/libs/keyext.server-*-exe.jar
+```
 
 ### Why a server rather than `key --auto`
 

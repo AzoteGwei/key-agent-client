@@ -1,6 +1,6 @@
 # key-agent-client
 
-A Python client for the headless [KeY](https://github.com/AzoteGwei/key) theorem prover server — for
+A Python client for the headless [KeY][key] theorem prover server — for
 proving that Java code satisfies its JML specification, and for finding out what to do when it
 does not.
 
@@ -21,8 +21,16 @@ No dependencies. Python 3.10 or newer. Add the `[mcp]` extra for the MCP server.
 ## Start a server
 
 This client does not start one, on purpose: a library that spawns JVMs is a library that owns
-processes it cannot supervise. From a checkout of [this KeY fork](https://github.com/AzoteGwei/key),
-which is where `keyext.server` lives — it is not part of upstream KeY:
+processes it cannot supervise. `keyext.server` lives in [this KeY fork][key] — it is not part of
+upstream KeY — and every release there carries a prebuilt jar. Its name carries both KeY's version
+and the server's, so ask the release for it rather than writing it down:
+
+```sh
+gh release download --repo AzoteGwei/key --pattern 'keyext.server-*-exe.jar'
+java -Xmx4g -jar keyext.server-*-exe.jar --port 0 --workspace /path/to/project
+```
+
+Or build it, from a checkout of that fork:
 
 ```sh
 ./gradlew :keyext.server:shadowJar
@@ -31,7 +39,8 @@ java -Xmx4g -jar keyext.server/build/libs/keyext.server-*-exe.jar \
 ```
 
 Give it `-Xmx4g`. KeY is memory-hungry and the default heap will not survive a real proof. The
-server publishes the port it got, so nothing needs to be passed to this client.
+server publishes the port it got, so nothing needs to be passed to this client. The [usage
+guide][guide] has the same download without `gh`, and the rest of the server's options.
 
 ## Prove something
 
@@ -99,6 +108,7 @@ the PyPI upload and the attached files are attested; the release notes say how t
 MIT. The KeY server it talks to is GPL-2.0-only; this client is a separate program that
 communicates with it over a network protocol.
 
+[key]: https://github.com/AzoteGwei/key
 [guide]: https://github.com/AzoteGwei/key-agent-client/blob/main/docs/guide.md
 [api]: https://github.com/AzoteGwei/key-agent-client/blob/main/docs/api.md
 [mcp]: https://github.com/AzoteGwei/key-agent-client/blob/main/docs/mcp.md

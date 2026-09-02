@@ -25,6 +25,45 @@ java -Xmx4g -jar keyext.server-*-exe.jar --port 0 --workspace .
 The `-Xmx4g` matters. KeY is memory-hungry and a server started without a heap setting dies part
 way through a real proof, which looks like a hang rather than like running out of memory.
 
+### Getting the jar
+
+`keyext.server` lives in <https://github.com/AzoteGwei/key> and is not part of upstream KeY. Its
+releases carry a prebuilt shadow jar; reach for that first, since building is a Gradle run of
+several minutes.
+
+The asset name carries both KeY's version and the server's — `keyext.server-3.1.0-v0.1.0-exe.jar`
+— so it cannot be written down in advance. Resolve it from the latest release:
+
+```sh
+gh release download --repo AzoteGwei/key --pattern 'keyext.server-*-exe.jar'
+```
+
+Or off the public API, which needs neither a token nor `gh`:
+
+```sh
+url=$(curl -fsSL https://api.github.com/repos/AzoteGwei/key/releases/latest | python3 -c '
+import json, sys
+assets = json.load(sys.stdin)["assets"]
+print(next(a["browser_download_url"] for a in assets
+           if a["name"].startswith("keyext.server-") and a["name"].endswith("-exe.jar")))
+')
+curl -fsSLO "$url"
+```
+
+Match `keyext.server-` and nothing looser. The same release also ships `key-3.1.0-v0.1.0-exe.jar`,
+which is the KeY desktop application — three times the size, opens a window, and does not speak
+JSON-RPC.
+
+Build it instead when the user wants a change of their own in the server:
+
+```sh
+git clone https://github.com/AzoteGwei/key && cd key
+./gradlew :keyext.server:shadowJar    # -> keyext.server/build/libs/keyext.server-*-exe.jar
+```
+
+Either way, the JDK that runs it must include `java.desktop`. `key.core` still reaches for Swing
+in places, so a trimmed jlink image will not start the server.
+
 ## The loop
 
 1. **`key_load(path)`** — a directory of Java sources, or the project's own `.key` file when it
