@@ -121,6 +121,18 @@ def test_the_documents_reference_each_other_and_nothing_missing() -> None:
             assert target.exists(), f"{page.name} links to {link}, which does not exist"
 
 
+def test_the_command_line_points_at_things_that_are_still_there() -> None:
+    # `key-agent -h` ends in a SEE ALSO, and its whole worth is that a reader can follow it. A
+    # link to a file somebody moved is worse than no link: it costs a round trip to find out.
+    source = (ROOT / "src" / "keyclient" / "cli.py").read_text(encoding="utf-8")
+    links = re.findall(
+        r"https://github\.com/AzoteGwei/key-agent-client/(?:blob|tree)/main/([^\s)\"]+)", source
+    )
+    assert links, "the command line no longer points anywhere; this test has stopped testing"
+    missing = sorted(each for each in links if not (ROOT / each).exists())
+    assert not missing, f"key-agent -h points at paths that do not exist: {missing}"
+
+
 def test_the_readme_links_out_absolutely_and_to_files_that_exist() -> None:
     # README is also the long description on PyPI, where a relative link resolves against
     # pypi.org and finds nothing. So its links into the rest of the repository are absolute,

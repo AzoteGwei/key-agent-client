@@ -32,6 +32,29 @@ EXIT_CLOSED = 0
 EXIT_NOT_CLOSED = 1
 EXIT_FAILED = 2
 
+#: What `-h` says exists besides this command.
+#:
+#: A manual page would call it SEE ALSO. It is here for the same reason `InstanceNotFoundError`
+#: carries a command rather than a description: the reader most likely to run `key-agent -h` is an
+#: agent that has just been handed this tool and has nothing else to go on, and neither the MCP
+#: server nor the skill file announces itself from inside a shell.
+#:
+#: Named by what they are rather than by whose harness they suit. The skill file's format belongs
+#: to somebody else and may be renamed; what this command promises is that a file is there. The
+#: MCP server is written out as the command that installs and starts it, because `key-agent-mcp`
+#: on its own reads like a package to go and find, and there is no such package: it is a script
+#: this one ships, and serving needs the extra.
+SEE_ALSO = """see also:
+  the same prover as MCP tools rather than as subcommands, from this package's
+  mcp extra:
+    uvx --from "key-agent-client[mcp]" key-agent-mcp --workspace .
+
+  a skill file, for an agent harness that reads them:
+    https://github.com/AzoteGwei/key-agent-client/blob/main/skills/key-prover/SKILL.md
+
+  three contracts whose answers are already known, for checking a setup:
+    https://github.com/AzoteGwei/key-agent-client/tree/main/examples/first-proof"""
+
 
 def main(argv: list[str] | None = None) -> int:
     """Runs the command line.
@@ -347,9 +370,13 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="key-agent",
         description=(
-            "Talk to a running headless KeY server. Third-party tool, not part of the KeY "
+            "Talk to a running headless KeY server. Third-party tool, not part of the KeY\n"
             "project. Exit status: 0 the proof is closed, 1 it is not, 2 the command failed."
         ),
+        epilog=SEE_ALSO,
+        # Both blocks are laid out here rather than reflowed to the terminal, which would run the
+        # URLs together with the lines describing them.
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--version", action="version", version=f"key-agent-client {__version__}")
     parser.add_argument("--host", default="127.0.0.1", help="host of an explicit server")

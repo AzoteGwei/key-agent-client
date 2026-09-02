@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+import pytest
 from conftest import FakeServer, once
 
 from keyclient.cli import EXIT_CLOSED, EXIT_FAILED, EXIT_NOT_CLOSED, main
@@ -193,3 +194,18 @@ def test_waiting_for_a_slow_task_still_reaches_the_result(fake: FakeServer, caps
 
     assert run(fake, "load", "/tmp/x") == EXIT_CLOSED
     assert "env\tenv-9" in capsys.readouterr().out
+
+
+def test_help_says_what_else_exists(capsys) -> None:
+    with pytest.raises(SystemExit):
+        main(["--help"])
+
+    help_text = capsys.readouterr().out
+    # An agent handed this command has no other way to learn that the MCP server, the skill file
+    # and the worked example are there. `-h` is the only surface it can reach from a shell.
+    assert "key-agent-mcp" in help_text
+    assert "skills/key-prover/SKILL.md" in help_text
+    assert "examples/first-proof" in help_text
+    # Named with the extra it comes from. `key-agent-mcp` alone reads like a package to go and
+    # install, and there is none: it is a script this package ships.
+    assert "key-agent-client[mcp]" in help_text
