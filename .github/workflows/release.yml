@@ -1,0 +1,194 @@
+name: Release
+
+# Releasing is by tag, and only for a tag that is on main.
+#
+# A tag push carries no branch, so `guard` establishes that itself, before anything is built. The
+# pypi environment's tag rule holds the same line from the other side: a ref that is not v* cannot
+# reach the OIDC identity at all, whatever this file has been edited to say.
+#
+# Two names here are not free to change. A tag runs this workflow as it exists in the tagged
+# commit, and PyPI matches its trusted publisher on this file's name and on the environment name,
+# so renaming either revokes the publisher rather than moving it.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      testpypi:
+        description: "Publish the current commit to TestPyPI"
+        type: boolean
+        default: true
+
+# Nothing by default; each job asks for what it needs.
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Tag is on main, at the version it claims
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: The tagged commit is on main
+        run: |
+          git fetch --no-tags --quiet origin +refs/heads/main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::$GITHUB_REF_NAME points at $GITHUB_SHA, which is not on main. Nothing published."
+            exit 1
+          fi
+
+      - name: The tag agrees with pyproject.toml
+        id: version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          project="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          if [ "$tag" != "$project" ]; then
+            echo "::error::$GITHUB_REF_NAME is version $tag, but pyproject.toml says $project."
+            exit 1
+          fi
+          echo "version=$project" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build and attest
+    needs: guard
+    # guard is skipped on workflow_dispatch, which is the rehearsal path; a guard that actually
+    # failed stops here.
+    if: always() && (needs.guard.result == 'success' || needs.guard.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.7"
+          enable-cache: true
+
+      # The same checks as CI, run once more on the exact tree that is about to be published and
+      # in a checkout with none of the leftovers a working copy accumulates.
+      - run: uv sync --locked --group dev --extra mcp
+      - run: uv run ruff check .
+      - run: uv run pytest
+
+      - run: uv build
+
+      # Provenance for the files themselves, independent of PyPI: this says that these bytes came
+      # out of this repository, this workflow and this commit.
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: dist/*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [guard, build]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/key-agent-client/${{ needs.guard.outputs.version }}/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      # No token, here or in the repository's secrets. The trusted publisher registered for this
+      # repository, this file and this environment is the whole credential, and the action signs
+      # and uploads a PEP 740 attestation with the files by default.
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  publish-testpypi:
+    name: Publish to TestPyPI
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.testpypi
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/key-agent-client/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          # The version is static, so rehearsing the same one twice would collide.
+          skip-existing: true
+
+  github-release:
+    name: GitHub release
+    # publish-pypi only runs for a tag, so neither does this: the release page never describes an
+    # upload that did not happen.
+    needs: [guard, publish-pypi]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ needs.guard.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Write the notes
+        run: |
+          # Asked for separately rather than through `gh release create --generate-notes`, which
+          # does not promise where it puts notes handed to it alongside.
+          gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
+            -f tag_name="$GITHUB_REF_NAME" -q .body > generated.md
+
+          wheel="$(basename dist/*.whl)"
+          sdist="$(basename dist/*.tar.gz)"
+
+          {
+            printf '`key-agent-client %s` is on PyPI, published from this tag with no token in the loop.\n\n' "$VERSION"
+            printf '    uv add key-agent-client==%s\n\n' "$VERSION"
+            printf -- '- PyPI: https://pypi.org/project/key-agent-client/%s/\n' "$VERSION"
+            printf -- '- Built from %s by `.github/workflows/release.yml`.\n\n' "$GITHUB_SHA"
+            printf 'The upload carries a PEP 740 attestation. To check that it came from here:\n\n'
+            printf '    uvx pypi-attestations verify pypi \\\n'
+            printf '      --repository https://github.com/%s \\\n' "$GITHUB_REPOSITORY"
+            printf '      pypi:%s\n\n' "$wheel"
+            printf 'The files below additionally carry a GitHub build provenance attestation: '
+            printf '`gh attestation verify <file> --repo %s`, or read it unauthenticated from\n' "$GITHUB_REPOSITORY"
+            printf '`https://api.github.com/repos/%s/attestations/sha256:<digest>`.\n\n' "$GITHUB_REPOSITORY"
+            printf '```\n'
+            ( cd dist && sha256sum "$wheel" "$sdist" )
+            printf '```\n\n'
+            printf -- '---\n\n'
+            cat generated.md
+          } > notes.md
+
+      - name: Create the release
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "key-agent-client $VERSION" \
+            --notes-file notes.md \
+            dist/*.whl dist/*.tar.gz

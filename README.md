@@ -80,6 +80,20 @@ The guide's [vocabulary section](docs/guide.md#vocabulary) is worth five minutes
 else: the distinctions in it — finished versus closed, out of ideas versus out of budget — are the
 ones that get misread.
 
+## Releasing
+
+Releases are cut by tag, and only a tag on `main` publishes anything.
+
+1. Set the version in `pyproject.toml` and `src/keyclient/__init__.py`. `tests/test_version.py`
+   fails if they disagree.
+2. Merge that to `main`.
+3. `git tag -a v0.1.0 -m "…" && git push origin v0.1.0`.
+
+`.github/workflows/release.yml` then refuses the tag unless its commit is on `main` and its name
+matches `pyproject.toml`, builds, uploads to PyPI through a trusted publisher — no API token
+exists for this project — and opens a GitHub release with the wheel, the sdist and a summary. Both
+the PyPI upload and the attached files are attested; the release notes say how to check them.
+
 ## Licence
 
 MIT. The KeY server it talks to is GPL-2.0-only; this client is a separate program that

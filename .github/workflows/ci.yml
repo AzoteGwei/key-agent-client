@@ -1,0 +1,40 @@
+name: CI
+
+# The release workflow tests again on a clean checkout before it publishes anything. This is the
+# everyday pass, so that a tag is never the first place a break is noticed.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The two ends of the supported range. Almost everything that breaks in between breaks at
+        # one of them, and the pair costs a minute.
+        python: ["3.10", "3.14"]
+    env:
+      UV_PYTHON: ${{ matrix.python }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          # pyproject.toml asks for uv_build >=0.12,<0.13; the pin keeps CI on that line.
+          version: "0.12.7"
+          enable-cache: true
+      - run: uv sync --locked --group dev --extra mcp
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest
