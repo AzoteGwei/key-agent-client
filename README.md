@@ -30,17 +30,10 @@ gh release download --repo AzoteGwei/key --pattern 'keyext.server-*-exe.jar'
 java -Xmx4g -jar keyext.server-*-exe.jar --port 0 --workspace /path/to/project
 ```
 
-Or build it, from a checkout of that fork:
-
-```sh
-./gradlew :keyext.server:shadowJar
-java -Xmx4g -jar keyext.server/build/libs/keyext.server-*-exe.jar \
-  --port 0 --workspace /path/to/project
-```
-
 Give it `-Xmx4g`. KeY is memory-hungry and the default heap will not survive a real proof. The
 server publishes the port it got, so nothing needs to be passed to this client. The [usage
-guide][guide] has the same download without `gh`, and the rest of the server's options.
+guide][guide] has the same download without `gh`, how to build the jar instead, and the rest of
+the server's options.
 
 ## Prove something
 
@@ -92,24 +85,11 @@ a succeeded task with three open goals.
 | Check that your setup works at all | [`examples/first-proof`][example] |
 | Give an agent the prover over MCP | [MCP server][mcp] |
 | Install the Claude Code skill | [`skills/key-prover`][skill] |
+| Work on this client, or cut a release | [Contributing][contributing] |
 
 The guide's [vocabulary section][vocabulary] is worth five minutes before anything
 else: the distinctions in it — finished versus closed, out of ideas versus out of budget — are the
 ones that get misread.
-
-## Releasing
-
-Releases are cut by tag, and only a tag on `main` publishes anything.
-
-1. Set the version in `pyproject.toml` and `src/keyclient/__init__.py`. `tests/test_version.py`
-   fails if they disagree.
-2. Merge that to `main`.
-3. `git tag -a v0.1.0 -m "…" && git push origin v0.1.0`.
-
-`.github/workflows/release.yml` then refuses the tag unless its commit is on `main` and its name
-matches `pyproject.toml`, builds, uploads to PyPI through a trusted publisher — no API token
-exists for this project — and opens a GitHub release with the wheel, the sdist and a summary. Both
-the PyPI upload and the attached files are attested; the release notes say how to check them.
 
 ## Licence
 
@@ -122,4 +102,5 @@ communicates with it over a network protocol.
 [mcp]: https://github.com/AzoteGwei/key-agent-client/blob/main/docs/mcp.md
 [example]: https://github.com/AzoteGwei/key-agent-client/blob/main/examples/first-proof
 [skill]: https://github.com/AzoteGwei/key-agent-client/blob/main/skills/key-prover/SKILL.md
+[contributing]: https://github.com/AzoteGwei/key-agent-client/blob/main/CONTRIBUTING.md
 [vocabulary]: https://github.com/AzoteGwei/key-agent-client/blob/main/docs/guide.md#vocabulary

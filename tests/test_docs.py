@@ -107,6 +107,7 @@ def test_the_skill_is_installable_where_claude_code_looks_for_it() -> None:
 def test_the_documents_reference_each_other_and_nothing_missing() -> None:
     pages = [
         ROOT / "README.md",
+        ROOT / "CONTRIBUTING.md",
         DOCS / "guide.md",
         DOCS / "api.md",
         DOCS / "mcp.md",
