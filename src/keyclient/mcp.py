@@ -80,10 +80,20 @@ def _verdict(statistics: Statistics, outcome: str | None = None) -> str:
             "The prover ran out of things to try, so more time will not help. Use key_inspect "
             "to see what is open, then a proof script, a solver, or a missing specification."
         )
-    elif outcome in ("MAX_RULES", "BUDGET_ELAPSED", "STRATEGY_TIMEOUT"):
+    elif outcome == "MAX_RULES":
+        # Separated from the clocks on purpose. This one is a cap on rule applications, and a
+        # caller told to "raise the budget" will raise budget_ms, hit it again, and loop.
         lines.append(
             "The search was stopped before it finished looking, so this says nothing about "
-            "whether the contract holds. Raise the budget and try again."
+            "whether the contract holds. It hit KeY's cap on rule applications rather than a "
+            "clock, so a larger budget_ms will not change it: the cap is a proof setting, "
+            "[Strategy]MaximumNumberOfAutomaticApplications, 10000 by default, and raising it "
+            "means a \\settings block in the project's .key file."
+        )
+    elif outcome in ("BUDGET_ELAPSED", "STRATEGY_TIMEOUT"):
+        lines.append(
+            "The search was stopped before it finished looking, so this says nothing about "
+            "whether the contract holds. Raise budget_ms and try again."
         )
     return "\n".join(lines)
 

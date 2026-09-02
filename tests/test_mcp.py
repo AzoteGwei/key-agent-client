@@ -80,11 +80,19 @@ def test_a_prover_out_of_ideas_is_told_apart_from_one_out_of_budget(
     _proof(fake, closed=False, outcome="BUDGET_ELAPSED")
     cut_short = call(built, "key_prove", env="env-1", contract_id="C")
 
-    # Same open proof, opposite next steps. Collapsing them would send an agent off raising a
-    # budget that is not the problem, or rewriting a specification that is fine.
+    _proof(fake, closed=False, outcome="MAX_RULES")
+    capped = call(built, "key_prove", env="env-1", contract_id="C")
+
+    # Same open proof, three different next steps. Collapsing any two would send an agent off
+    # raising a budget that is not the problem, or rewriting a specification that is fine.
     assert "more time will not help" in exhausted
-    assert "Raise the budget" in cut_short
+    assert "Raise budget_ms" in cut_short
     assert "says nothing about whether the contract holds" in cut_short
+    # MAX_RULES is a cap on rule applications, not a clock. An agent told to raise the budget
+    # raises budget_ms, hits the cap again, and loops.
+    assert "says nothing about whether the contract holds" in capped
+    assert "larger budget_ms will not change it" in capped
+    assert "MaximumNumberOfAutomaticApplications" in capped
 
 
 def test_an_open_proof_says_which_goals_to_act_on(fake, monkeypatch, tmp_path) -> None:

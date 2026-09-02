@@ -169,7 +169,8 @@ reads half a megabyte of proof file to find out — the `.key` is for the next p
    | --- | --- | --- |
    | A specification is missing, with a file and line | KeY needs a loop invariant, or a contract on something being called | Go and read that line. Write the JML. This is a code change, not a prover problem. |
    | The prover ran out of things to try (`EXHAUSTED`) | More time will not help | Apply one of the proof script lines it offers, or `smt;`. See step 4a. |
-   | It never finished looking | It only ran out of budget | Re-run `key_prove` with a larger `budget_ms`. |
+   | It never finished looking (`BUDGET_ELAPSED`) | It only ran out of time | Re-run `key_prove` with a larger `budget_ms`. |
+   | It never finished looking (`MAX_RULES`) | It ran out of *rule applications*, not time | `budget_ms` cannot fix this. The cap is `[Strategy]MaximumNumberOfAutomaticApplications`, 10000 by default; raise it in the project's `.key` file. |
 
    4a. **`key_script(proof_id, goal_id, script)`** — `key_inspect` hands back ready-to-run lines
    with occurrence numbers already in them; prefer those over lines you compose. Otherwise
