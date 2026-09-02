@@ -150,6 +150,9 @@ jobs:
       contents: write
     env:
       GH_TOKEN: ${{ github.token }}
+      # This job never checks the repository out — it only needs the built files — so gh has no
+      # git remote to infer a repository from and has to be told which one it is working on.
+      GH_REPO: ${{ github.repository }}
       VERSION: ${{ needs.guard.outputs.version }}
     steps:
       - uses: actions/download-artifact@v4
