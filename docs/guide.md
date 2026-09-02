@@ -225,6 +225,46 @@ Loading such a project by its source directory fails with a symbol KeY cannot re
 accurate but easy to misread as a broken project. KeY's own `case-studies/timsort` is one of
 these.
 
+### Settings belong in there too
+
+A `.key` file also carries a `\settings` block, and it is the only place a project can say what it
+is being proved under. KeY's proof settings otherwise live in the user's home directory: two
+machines with different ones get different answers from the same source, and nothing in the result
+says so.
+
+Two of them change what a verdict means rather than how long it takes.
+
+`intRules` decides how integers are modelled. Its default is `arithmeticSemanticsIgnoringOF`,
+which treats them as mathematical objects and does not model overflow — KeY's own
+`optionsDeclarations.key` marks that default `@choiceUnsound` and says it "allows the verification
+of properties which do not hold on Java's actual semantics". So a contract closed on a machine
+with no settings file is a weaker result than the same contract closed under `javaSemantics`, and
+`closed: true` reads identically either way.
+
+`NON_LIN_ARITH_OPTIONS_KEY` decides whether the prover reasons about multiplication at all. It is
+the difference between an invariant that states a closed form being usable and being ignored.
+
+```
+\settings {
+"
+[Choice]DefaultChoices=intRules-intRules\\:javaSemantics
+[StrategyProperty]NON_LIN_ARITH_OPTIONS_KEY=NON_LIN_ARITH_DEF_OPS
+"
+}
+```
+
+**A `\settings` block only takes effect if you load the `.key` file itself.** Loading the
+directory it sits in ignores it, and the machine's settings win — which looks like nothing at all,
+because the result is a perfectly ordinary `closed: true`. Loading the `.key` still lists every
+contract under its `\javaSource`, so there is no reason to load the directory instead.
+
+KeY also writes the settings it took from the file back into the user's settings file, so they
+become that machine's defaults afterwards. That is usually what you want and never what you
+expect.
+
+The [worked example's walk-through](../examples/first-proof/README.md) pins both, and says why at
+the point where it matters.
+
 ---
 
 ## The workflow

@@ -73,6 +73,82 @@ checkout of it and prove `Max`; if that does not come back `closed: true`, the p
 the heap or the server, and nothing you do to the user's specifications will help. Reach for this
 when a project behaves in a way you cannot explain, not on every run.
 
+## Before the loop: settle what "proved" is going to mean
+
+KeY does not have one notion of a correct `int`. It has three, the choice is a setting, and the
+setting lives in the user's home directory rather than in the project. Which one is in force
+decides what a closed proof is worth, and `closed: true` reads identically under all three.
+
+| `intRules` | What it models | KeY's own label |
+| --- | --- | --- |
+| `arithmeticSemanticsIgnoringOF` | integers are unbounded; overflow does not exist | **the default**, marked `@choiceUnsound`: it "allows the verification of properties which do not hold on Java's actual semantics" |
+| `arithmeticSemanticsCheckingOF` | integers are unbounded, and the proof must show no overflow happens | `@choiceIncomplete`, but it "prevents proving incorrect properties" |
+| `javaSemantics` | `int` wraps exactly as Java's does | sound and complete; the proof obligations get harder |
+
+### Ask, because the user will not
+
+Someone asking to have their Java verified has usually never had to pick an integer semantics and
+will not raise it. You have to, while you are agreeing what to prove — and in their terms, not the
+prover's. The question is not "which `intRules`?". It is **"should this code ever be allowed to
+overflow?"**
+
+- *It must never overflow.* The usual answer for anything counting, summing, sizing, or handling
+  money, timestamps or byte lengths. `javaSemantics` is the workhorse: it models the wrap, so a
+  method that can overflow simply fails to prove, and the open goal shows you the state it fails
+  in. `arithmeticSemanticsCheckingOF` says it more directly — "no overflow happens" becomes its
+  own obligation — but KeY marks it `@choiceIncomplete`, the obligations multiply, and an
+  invariant that suffices under `javaSemantics` may not suffice under it. Reach for it when the
+  user wants overflow-freedom stated rather than inferred, and budget for the extra work.
+- *It relies on wrapping.* Hashes, checksums, PRNGs, deliberate bit twiddling. `javaSemantics`
+  again: it models the wrap rather than forbidding it.
+- *The values genuinely cannot get large, or this is a toy.* The default is fine — and then say in
+  the result that overflow was not modelled, rather than reporting the contract as proved and
+  leaving that out.
+
+Raise it yourself when the code invites it, even if nobody asked. `(lo + hi) / 2` in a binary
+search is the canonical case: it looks right, it proves under the default, and it is a real bug on
+a large array. Accumulating sums, a product of two inputs, and casts down to a narrower type are
+the others.
+
+### Then write the answer into the project
+
+A proof that closed on one machine and nowhere else is not a result anyone can check. If the
+project has no `.key` file carrying a `\settings` block, the next person has to guess what the
+committer's `~/.key` held — and there is nothing in the repository to guess from. Whoever that is
+may be you, next session.
+
+So propose one, as a change like any other, before proving:
+
+```
+\settings {
+"
+[Choice]DefaultChoices=intRules-intRules\\:javaSemantics
+[StrategyProperty]NON_LIN_ARITH_OPTIONS_KEY=NON_LIN_ARITH_DEF_OPS
+"
+}
+
+\javaSource "src";
+```
+
+`NON_LIN_ARITH_OPTIONS_KEY` belongs there too: it decides whether the prover reasons about
+multiplication at all, which is the difference between an invariant stating a closed form being
+usable and being ignored.
+
+Three things about it that are not guessable:
+
+- **A `\settings` block only applies if you load the `.key` file itself.** `key_load` on the
+  directory it sits in ignores it and runs under the machine's settings, and the result looks like
+  an ordinary `closed: true`. Loading the `.key` still lists every contract under its
+  `\javaSource`, so point `key_load` at the file.
+- **KeY writes those settings back into `~/.key`**, so they become that machine's defaults
+  afterwards. Say so before you do it to someone's machine.
+- **`\chooseContract` makes KeY create that proof at load time**, so the contract shows as
+  `proved` in the listing before anything has run. Read `closed` from the proof, as always.
+
+`key_save` writes the settings into the proof file, so a saved proof does record what it was
+proved under. That makes a finished proof checkable. It does not help the next proof, and nobody
+reads half a megabyte of proof file to find out — the `.key` is for the next person.
+
 ## The loop
 
 1. **`key_load(path)`** — a directory of Java sources, or the project's own `.key` file when it
@@ -124,6 +200,9 @@ loop invariant. When it contains a call, look for a missing contract on the call
   to close a proof is to weaken what is promised, say so and let the user decide.
 - **Prove one contract at a time.** A project has many; report each one's outcome separately
   rather than summarising a batch as working.
+- **Say what it was proved under.** A verdict without its integer semantics is half a verdict;
+  under the default, overflow was not modelled at all. Settle that before proving, and report it
+  with the result.
 - **Goal ids move.** They are node numbers, and the tree grows underneath you. Use the
   `openGoalIds` from the most recent answer, never one from an earlier step.
 - **An empty stuck-point list is not "the goal is fine".** It means nothing is waiting on a
