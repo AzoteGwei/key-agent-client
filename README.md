@@ -71,12 +71,12 @@ a succeeded task with three open goals.
 
 | If you want to | Read |
 | --- | --- |
-| Drive the prover yourself, from Python or the shell | [Usage guide](docs/guide.md) |
-| Look up a method, a field or an error code | [API reference](docs/api.md) |
-| Give an agent the prover over MCP | [MCP server](docs/mcp.md) |
-| Install the Claude Code skill | [`skills/key-prover`](skills/key-prover/SKILL.md) |
+| Drive the prover yourself, from Python or the shell | [Usage guide][guide] |
+| Look up a method, a field or an error code | [API reference][api] |
+| Give an agent the prover over MCP | [MCP server][mcp] |
+| Install the Claude Code skill | [`skills/key-prover`][skill] |
 
-The guide's [vocabulary section](docs/guide.md#vocabulary) is worth five minutes before anything
+The guide's [vocabulary section][vocabulary] is worth five minutes before anything
 else: the distinctions in it — finished versus closed, out of ideas versus out of budget — are the
 ones that get misread.
 
@@ -98,3 +98,9 @@ the PyPI upload and the attached files are attested; the release notes say how t
 
 MIT. The KeY server it talks to is GPL-2.0-only; this client is a separate program that
 communicates with it over a network protocol.
+
+[guide]: https://github.com/AzoteGwei/key-agent-client/blob/main/docs/guide.md
+[api]: https://github.com/AzoteGwei/key-agent-client/blob/main/docs/api.md
+[mcp]: https://github.com/AzoteGwei/key-agent-client/blob/main/docs/mcp.md
+[skill]: https://github.com/AzoteGwei/key-agent-client/blob/main/skills/key-prover/SKILL.md
+[vocabulary]: https://github.com/AzoteGwei/key-agent-client/blob/main/docs/guide.md#vocabulary

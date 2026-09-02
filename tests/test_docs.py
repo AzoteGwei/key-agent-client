@@ -24,6 +24,7 @@ from keyclient.client import KeyClient
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
 SKILL = ROOT / "skills" / "key-prover" / "SKILL.md"
+BLOB = "https://github.com/AzoteGwei/key-agent-client/blob/main/"
 
 
 def read(path: Path) -> str:
@@ -111,3 +112,17 @@ def test_the_documents_reference_each_other_and_nothing_missing() -> None:
                 continue
             target = (page.parent / link).resolve()
             assert target.exists(), f"{page.name} links to {link}, which does not exist"
+
+
+def test_the_readme_links_out_absolutely_and_to_files_that_exist() -> None:
+    # README is also the long description on PyPI, where a relative link resolves against
+    # pypi.org and finds nothing. So its links into the rest of the repository are absolute,
+    # which puts them past the check above — and an absolute link to a file somebody moved is
+    # exactly as broken as a relative one.
+    readme = read(ROOT / "README.md")
+    for link in re.findall(r"\]\(([^)#][^)]*?)(?:#[^)]*)?\)", readme):
+        assert link.startswith(("http://", "https://", "mailto:")), (
+            f"README links to {link} relatively; on PyPI that resolves against pypi.org"
+        )
+    for path in re.findall(re.escape(BLOB) + r"([^)\s#]+)", readme):
+        assert (ROOT / path).exists(), f"README links to {path}, which does not exist"
